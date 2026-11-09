@@ -1,0 +1,33 @@
+---
+title: Mesa de triagem CS2
+emoji: 📈
+colorFrom: blue
+colorTo: red
+sdk: docker
+app_port: 8501
+pinned: false
+---
+
+# Mesa de triagem de eventos anômalos — CS2 / Steam Community Market
+
+Aplicativo interativo do TCC **"Detecção de padrões anômalos como possíveis sinais de manipulação em itens de CS2 no
+Steam Community Market"**, de Matheus Lima Ribeiro (Ciência de Dados e IA — IESB), sob orientação do
+Prof. Sérgio da Costa Côrtes.
+
+O app reproduz o pipeline de triagem do trabalho sobre uma cesta de 5 skins Field-Tested (01/01/2024 a 15/06/2026):
+baseline robusto (MAD), mudanças de regime (PELT), Isolation Forest, ranking integrado e estudo de evento da
+atualização Trade Up (22/10/2025). Com os parâmetros padrão, os números coincidem com as tabelas do TCC.
+
+> **Triagem, não prova.** Os dados são agregados diários (skin × dia), sem livro de ofertas nem identificação de
+> contas. Um evento anômalo indica prioridade de investigação contextual, não manipulação intencional.
+
+## Rodar localmente
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+## Dados
+
+`output/cesta_2024_2026.csv` é um recorte do dataset público de Devyn Pruden no Kaggle (versão 4, licença Apache 2.0).
