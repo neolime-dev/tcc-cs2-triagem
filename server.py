@@ -32,6 +32,8 @@ HERE = Path(__file__).resolve().parent
 DATA = HERE / "output" / "cesta_2024_2026.csv"
 WEB = HERE / "web"
 CACHE_DIR = HERE / ".cache"
+# Processos/threads paralelos. Na nuvem (Render grátis, 512 MB) o Dockerfile define N_JOBS=1.
+N_JOBS = int(os.environ.get("N_JOBS", os.cpu_count() or 1))
 
 # --- Constantes idênticas a app.py / gerar_tabelas_cesta.py ---
 SELECTED_ITEMS = [
@@ -133,7 +135,7 @@ def _sinal_pelt(df: pd.DataFrame, short_name: str):
 def ajustar_isolation_forest(df: pd.DataFrame, contaminacao: float) -> pd.DataFrame:
     """Seção 18: 300 árvores, random_state=42, mesmas features e mesma ordem de linhas."""
     model_data = df.dropna(subset=FEATURES)[["market_hash_name", "date", "short_name", *FEATURES]].copy()
-    iso = IsolationForest(n_estimators=300, contamination=contaminacao, random_state=42, n_jobs=-1)
+    iso = IsolationForest(n_estimators=300, contamination=contaminacao, random_state=42, n_jobs=N_JOBS)
     model_data["if_label"] = iso.fit_predict(model_data[FEATURES])
     model_data["if_score"] = -iso.decision_function(model_data[FEATURES])
     model_data["if_candidate"] = model_data["if_label"] == -1
@@ -278,7 +280,7 @@ class Estado:
             frames[s] = f
             tarefas += [(s, p, signal) for p in PELT_SLIDER]
         try:
-            res = Parallel(n_jobs=min(len(tarefas), os.cpu_count() or 1))(delayed(_pelt)(sig, p) for _, p, sig in tarefas)
+            res = Parallel(n_jobs=min(len(tarefas), N_JOBS))(delayed(_pelt)(sig, p) for _, p, sig in tarefas)
         except Exception:
             res = [_pelt(sig, p) for _, p, sig in tarefas]
         pelt = {}
