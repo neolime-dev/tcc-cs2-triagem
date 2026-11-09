@@ -4,7 +4,7 @@ emoji: 📈
 colorFrom: blue
 colorTo: red
 sdk: docker
-app_port: 8501
+app_port: 7860
 pinned: false
 ---
 
@@ -25,8 +25,11 @@ atualização Trade Up (22/10/2025). Com os parâmetros padrão, os números coi
 
 ```bash
 pip install -r requirements.txt
-streamlit run app.py
+python server.py --open        # Terminal de triagem (versão principal) → http://127.0.0.1:8765
+streamlit run app.py           # versão alternativa em Streamlit, mesmos números
 ```
+
+Na nuvem (Hugging Face Spaces / Render), o `Dockerfile` sobe o Terminal de triagem.
 
 ## Dados
 

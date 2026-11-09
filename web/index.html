@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS2 Market Triage — Terminal do TCC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div>
+      <div class="brand-name">CS2 MARKET TRIAGE <span class="brand-tag">TERMINAL</span></div>
+      <div class="brand-sub">Triagem de eventos anômalos · Steam Community Market · 2024–2026</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="meta-chip mono" id="meta-periodo">—</div>
+    <div class="meta-chip mono" id="meta-obs">—</div>
+    <div class="status" id="status"><span class="dot"></span><span id="status-txt">conectando…</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="cards" id="cards" aria-label="Seletor de skin"></section>
+
+  <section class="controls panel" aria-label="Parâmetros">
+    <div class="ctrl">
+      <div class="ctrl-head"><label for="sl-limiar">Limiar MAD <span class="hint">|z| robusto</span></label><output class="mono" id="out-limiar">4,0</output></div>
+      <input type="range" id="sl-limiar" min="3" max="6" step="0.1" value="4">
+      <div class="ctrl-scale mono"><span>3,0</span><span class="tcc-tick" style="--p:33.33%">TCC</span><span>6,0</span></div>
+    </div>
+    <div class="ctrl">
+      <div class="ctrl-head"><label for="sl-pen">Penalização PELT <span class="hint">custo RBF</span></label><output class="mono" id="out-pen">10</output></div>
+      <input type="range" id="sl-pen" min="5" max="20" step="1" value="10">
+      <div class="ctrl-scale mono"><span>5</span><span class="tcc-tick" style="--p:33.33%">TCC</span><span>20</span></div>
+    </div>
+    <div class="ctrl">
+      <div class="ctrl-head"><label for="sl-cont">Contaminação IF <span class="hint">fração esperada</span></label><output class="mono" id="out-cont">0,020</output></div>
+      <input type="range" id="sl-cont" min="0.01" max="0.05" step="0.005" value="0.02">
+      <div class="ctrl-scale mono"><span>0,010</span><span class="tcc-tick" style="--p:25%">TCC</span><span>0,050</span></div>
+    </div>
+    <div class="ctrl-actions">
+      <div class="badge-mode" id="badge-mode">PARÂMETROS OFICIAIS DO TCC</div>
+      <button class="btn" id="btn-reset" type="button">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Restaurar padrão do TCC
+      </button>
+    </div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-tab="monitor" aria-selected="true">Monitor &amp; Triagem</button>
+    <button class="tab" role="tab" data-tab="evento" aria-selected="false">Estudo de evento &amp; Sensibilidade</button>
+    <div class="tabs-note"><b>Triagem, não prova.</b> Séries diárias agregadas (skin × dia), sem livro de ofertas nem IDs de contas: um alerta indica prioridade de investigação contextual, não manipulação.</div>
+  </nav>
+
+  <!-- ======================= ABA 1 ======================= -->
+  <section class="tabpane active" id="tab-monitor">
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid-main">
+      <div class="panel chart-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title" id="chart-title">—</div>
+            <div class="panel-sub" id="chart-sub">Preço mediano diário (US$) e volume (unidades vendidas)</div>
+          </div>
+          <div class="range-btns" id="range-btns">
+            <button data-r="90">3M</button><button data-r="180">6M</button><button data-r="365">1A</button><button data-r="0" class="on">Tudo</button>
+          </div>
+        </div>
+        <div class="legend" id="legend">
+          <span><i class="lg-line"></i>Preço</span>
+          <span><i class="lg-dot red"></i>Candidato MAD</span>
+          <span><i class="lg-ring amber"></i>Isolation Forest</span>
+          <span><i class="lg-dash cyan"></i>Quebra PELT</span>
+          <span><i class="lg-dash yellow"></i>Quebra PELT estável (todas as pen. do TCC)</span>
+          <span><i class="lg-vline green"></i>Atualização Valve</span>
+          <span><i class="lg-band"></i>Evento selecionado</span>
+        </div>
+        <div id="chart" class="chart"></div>
+      </div>
+
+      <aside class="panel dossie" id="dossie" aria-live="polite"></aside>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Mesa de triagem — Top 25 do ranking integrado</div>
+          <div class="panel-sub">R<sub>t</sub> = média dos postos percentuais do escore robusto (MAD) e do escore do Isolation Forest. Clique numa linha para abrir o dossiê.</div>
+        </div>
+        <div class="chips" id="filtros">
+          <button class="chip on" data-f="all">Todas <b id="f-all">25</b></button>
+          <button class="chip" data-f="oficial">Atualização oficial <b id="f-of">—</b></button>
+          <button class="chip" data-f="sem">Sem explicação verificada <b id="f-sem">—</b></button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="tbl" id="tbl-top">
+          <thead><tr>
+            <th class="num">#</th><th>Data</th><th>Skin</th><th>Classificação provisória</th>
+            <th class="w-bar">Posto integrado R<sub>t</sub></th><th class="w-bar">Escore MAD</th><th class="w-bar">Escore IF</th>
+            <th class="ctr">MAD</th><th class="ctr">IF</th><th class="num">Retorno</th><th class="num">Preço</th><th class="num">Volume</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="groups" id="groups"></div>
+      <p class="foot-note">O Top 25 usa os escores <b>contínuos</b>: o limiar MAD não altera o escore robusto e a contaminação apenas desloca o corte do IF (mesmas árvores, semente 42). Por isso a lista é estável; mudam apenas as colunas MAD e IF.</p>
+    </div>
+  </section>
+
+  <!-- ======================= ABA 2 ======================= -->
+  <section class="tabpane" id="tab-evento">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Estudo de evento — atualização Trade Up (22/10/2025)</div>
+          <div class="panel-sub">Janela de ±30 dias. Base 100 no último preço antes da atualização (D−1 = 21/10/2025). Volume: mediana D−30…D−1 contra D0…D+30.</div>
+        </div>
+      </div>
+      <div class="contrast" id="contrast"></div>
+      <div class="ev-grid">
+        <div><div class="sub-title">Índice de preço (base 100 em D−1)</div><div id="chart-evento" class="chart-md"></div></div>
+        <div><div class="sub-title">Variação acumulada contra D−1</div><div id="chart-horiz" class="chart-md"></div></div>
+      </div>
+      <div class="table-wrap">
+        <table class="tbl compact" id="tbl-evento"><thead><tr>
+          <th>Skin</th><th>Raridade</th><th class="num">Preço D−1</th><th class="num">D0</th><th class="num">D+7</th><th class="num">D+30</th>
+          <th class="num">Vol. med. antes</th><th class="num">Vol. med. depois</th><th class="num">Razão</th><th class="num">Vol. máx. antes</th><th class="num">Vol. máx. depois</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+      <ul class="bullets" id="ev-bullets"></ul>
+    </div>
+
+    <div class="sens-grid">
+      <div class="panel">
+        <div class="panel-title">Sensibilidade do baseline robusto (MAD)</div>
+        <div class="panel-sub">Eventos com max(|z<sub>ret</sub>|, |z<sub>vol</sub>|) ≥ limiar · 5 skins</div>
+        <div id="chart-sens-mad" class="chart-sm"></div>
+        <table class="tbl compact" id="tbl-sens-mad"><thead><tr><th class="num">Limiar</th><th class="num">Eventos</th><th class="num">% das obs.</th><th></th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Sensibilidade do PELT — <span id="sens-pelt-skin">—</span></div>
+        <div class="panel-sub">Cada linha = uma penalização; cada marca = 1º dia de um novo regime. Amarelo: data presente em todas as penalizações do TCC.</div>
+        <div id="chart-sens-pelt" class="chart-sm tall"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Isolation Forest × Baseline: concordância</div>
+        <div class="panel-sub">Eventos do IF por contaminação e quantos também são candidatos MAD (limiar atual)</div>
+        <div id="chart-sens-if" class="chart-sm"></div>
+        <table class="tbl compact" id="tbl-sens-if"><thead><tr><th class="num">Contam.</th><th class="num">Eventos IF</th><th class="num">Também MAD</th><th class="num">Concordância</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    TCC-II · Matheus Lima Ribeiro · Ciência de Dados e IA — IESB · Orientador: Prof. Sérgio da Costa Côrtes ·
+    Fonte: Pruden (2026), dataset público do Kaggle (Apache 2.0), cesta de 5 skins Field-Tested. Cálculos idênticos a <span class="mono">prototipo/gerar_tabelas_cesta.py</span>.
+  </footer>
+</main>
+
+<div class="loader" id="loader"><div class="spin"></div><span>calculando…</span></div>
+</body>
+</html>
