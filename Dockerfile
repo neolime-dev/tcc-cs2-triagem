@@ -7,7 +7,7 @@ COPY . .
 # Sem paralelismo: o plano grátis tem 512 MB de RAM.
 ENV N_JOBS=1
 # Pré-calcula IF e PELT (80 combinações) na construção da imagem: o app abre rápido na nuvem.
-RUN python -c "import server; server.Estado()"
+RUN python -c "import server; server.Estado()" && test -s .cache/pelt.json
 # O Render define a variável PORT; 7860 é só o padrão.
 ENV PORT=7860
 EXPOSE 7860

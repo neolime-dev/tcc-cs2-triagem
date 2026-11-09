@@ -8,6 +8,7 @@ Uso (dentro de prototipo/):   .venv/bin/python server.py   →   http://127.0.0.
 Opções:  --port 8765  --host 127.0.0.1  --open (abre o navegador quando estiver pronto)
 """
 import argparse
+import hashlib
 import socket
 import sys
 import webbrowser
@@ -246,7 +247,8 @@ def _lista(serie, casas=None):
 class Estado:
     def __init__(self):
         t0 = time.time()
-        self.mtime = DATA.stat().st_mtime
+        # Identifica o CSV pelo conteúdo (não pela data): o cache feito no build vale na nuvem.
+        self.chave = hashlib.sha256(DATA.read_bytes()).hexdigest()
         self.base = preparar_base()
         print(f"[base] {len(self.base):,} observações carregadas em {time.time() - t0:.1f}s")
 
@@ -264,13 +266,13 @@ class Estado:
         print(f"[ok]   pronto em {time.time() - t0:.1f}s")
 
     def _carregar_pelt(self) -> dict:
-        """PELT de todas as skins × penalizações do slider; cache em disco invalidado pelo mtime do CSV."""
+        """PELT de todas as skins × penalizações do slider; cache em disco invalidado pelo hash do CSV."""
         CACHE_DIR.mkdir(exist_ok=True)
         arquivo = CACHE_DIR / "pelt.json"
         if arquivo.exists():
             try:
                 salvo = json.loads(arquivo.read_text())
-                if salvo.get("mtime") == self.mtime:
+                if salvo.get("chave") == self.chave:
                     return {(s, int(p)): v for s, d in salvo["breaks"].items() for p, v in d.items()}
             except Exception:
                 pass
@@ -286,7 +288,7 @@ class Estado:
         pelt = {}
         for (s, p, _), idx in zip(tarefas, res):
             pelt[(s, p)] = [frames[s].iloc[b]["date"].strftime("%Y-%m-%d") for b in idx]
-        dump = {"mtime": self.mtime, "breaks": {}}
+        dump = {"chave": self.chave, "breaks": {}}
         for (s, p), v in pelt.items():
             dump["breaks"].setdefault(s, {})[str(p)] = v
         arquivo.write_text(json.dumps(dump))
@@ -460,6 +462,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         url = urlparse(self.path)
+        if url.path.startswith("/api/") and ESTADO is None:  # ainda calculando: o front tenta de novo
+            return self._json(b'{"carregando": true}', HTTPStatus.SERVICE_UNAVAILABLE)
         if url.path == "/api/state":
             try:
                 args = _parse(parse_qs(url.query))
@@ -490,16 +494,21 @@ def main():
             return
     if not DATA.exists():
         raise SystemExit(f"Arquivo não encontrado: {DATA}")
-    ESTADO = Estado()
-    ESTADO.payload(ORDEM_SKINS[0], PADRAO["limiar"], PADRAO["penalidade"], PADRAO["contaminacao"])  # aquece
+    # Abre a porta antes de calcular (o Render exige porta aberta); a API responde 503 até ficar pronta.
     srv = ThreadingHTTPServer((a.host, a.port), Handler)
-    print(f"\n  Terminal de triagem CS2 → {url}\n  (Ctrl+C para encerrar)\n")
-    if a.open:
-        threading.Timer(0.5, webbrowser.open, args=(url,)).start()
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
-        srv.serve_forever()
+        estado = Estado()
+        estado.payload(ORDEM_SKINS[0], PADRAO["limiar"], PADRAO["penalidade"], PADRAO["contaminacao"])  # aquece
+        ESTADO = estado
+        print(f"\n  Terminal de triagem CS2 → {url}\n  (Ctrl+C para encerrar)\n")
+        if a.open:
+            webbrowser.open(url)
+        threading.Event().wait()
     except KeyboardInterrupt:
         pass
+    finally:
+        srv.shutdown()
 
 
 if __name__ == "__main__":

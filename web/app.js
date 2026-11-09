@@ -45,6 +45,11 @@ async function carregar() {
     const t = setTimeout(() => $("loader").classList.add("on"), 120);
     try {
       const r = await fetch("/api/state?" + k);
+      if (r.status === 503) {  // servidor ainda calculando (ex.: acordando na nuvem): tenta de novo
+        setStatus("", "carregando dados…");
+        setTimeout(() => { if (my === seq) carregar(); }, 2000);
+        return;
+      }
       if (!r.ok) throw new Error("HTTP " + r.status);
       data = await r.json();
       cache.set(k, data);
