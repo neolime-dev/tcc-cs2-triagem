@@ -239,18 +239,19 @@ def classificar_evento(data: pd.Timestamp, short_name: str) -> tuple:
     Retorna (grupo, rótulo curto para a mesa de triagem, texto da tabela do TCC).
     """
     if pd.Timestamp("2025-10-22") <= data <= pd.Timestamp("2025-11-02"):
-        return ("Atualização oficial", "Atualização Trade Up (22/10/2025)",
-                "Associado a contexto legítimo conhecido: atualização oficial de 22/10/2025 (Trade Up)")
+        return ("Choque comum", "Atualização Trade Up (22/10/2025)",
+                "Choque comum; associado a contexto legítimo conhecido: atualização oficial de 22/10/2025 (Trade Up)")
     if data == pd.Timestamp("2024-10-03"):
-        return ("Atualização oficial", "Atualização The Armory (02/10/2024)",
-                "Associado a contexto legítimo conhecido: atualização oficial The Armory, de 02/10/2024 (03/10 em UTC)")
+        return ("Choque comum", "Atualização The Armory (02/10/2024)",
+                "Choque comum; associado a contexto legítimo conhecido: atualização oficial The Armory, de 02/10/2024 (03/10 em UTC)")
     if short_name.startswith("M4A1-S") and data in (pd.Timestamp("2025-06-24"), pd.Timestamp("2025-06-25")):
-        return ("Sem explicação verificada", "Sem explicação: dado ou venda isolada?",
-                "Sem explicação observada; hipótese de problema de dado ou venda isolada")
+        return ("Movimento próprio do item", "Próprio do item: dado ou venda isolada?",
+                "Movimento próprio do item; sem explicação observada; hipótese de problema de dado ou venda isolada")
     if short_name.startswith("AK-47") and data == pd.Timestamp("2025-02-01"):
-        return ("Sem explicação verificada", "Sem explicação: em investigação",
-                "Sem explicação observada; mantido para investigação")
-    return ("Não classificado", "Fora da classificação do TCC",
+        return ("Choque comum", "Choque comum: causa não confirmada",
+                "Choque comum; coincide com a atualização de 29/01/2025 e com relatos de falha no mercado, "
+                "sem confirmação oficial")
+    return ("Não classificado", "Fora da tabela do TCC",
             "Fora da classificação do TCC; exige investigação contextual")
 
 
@@ -580,27 +581,29 @@ def aba_triagem(top: pd.DataFrame, limiar: float, contaminacao: float):
         "Grupo": classes[0].to_numpy(),
         "Classificação no TCC": classes[2].to_numpy(),
     })
-    n_oficial = int((tabela["Grupo"] == "Atualização oficial").sum())
-    n_sem = int((tabela["Grupo"] == "Sem explicação verificada").sum())
+    n_oficial = int((tabela["Grupo"] == "Choque comum").sum())
+    n_sem = int((tabela["Grupo"] == "Movimento próprio do item").sum())
     n_conv = int(((tabela["MAD"] == "Sim") & (tabela["IF"] == "Sim")).sum())
     c = st.columns(4)
     c[0].metric("Observações priorizadas", br(len(tabela)))
-    c[1].metric("Associadas a atualizações oficiais", br(n_oficial), help="Trade Up (22/10/2025) e The Armory (02/10/2024)")
-    c[2].metric("Sem explicação verificada", br(n_sem), help="Permanecem como prioridade de investigação contextual")
+    c[1].metric("Em dias de choque comum", br(n_oficial),
+                help="Trade Up (22/10/2025), The Armory (02/10/2024) e o choque de 01/02/2025. "
+                     "A amplitude é medida no índice de mercado de 1.412 skins (aba Mercado & Regra do app principal).")
+    c[2].metric("Próprias do item", br(n_sem), help="Movimento só do item; permanecem para conferência com outra fonte")
     c[3].metric("Marcadas pelos dois métodos", br(n_conv),
                 help=f"Com limiar {br(limiar, 1)} e contaminação {br(contaminacao, 3)}")
 
-    filtro = st.radio("Mostrar", ["Todas", "Associadas a atualizações oficiais", "Sem explicação verificada"],
+    filtro = st.radio("Mostrar", ["Todas", "Em dias de choque comum", "Próprias do item"],
                       horizontal=True, label_visibility="collapsed")
-    if filtro == "Associadas a atualizações oficiais":
-        vis = tabela[tabela["Grupo"] == "Atualização oficial"]
-    elif filtro == "Sem explicação verificada":
-        vis = tabela[tabela["Grupo"] != "Atualização oficial"]
+    if filtro == "Em dias de choque comum":
+        vis = tabela[tabela["Grupo"] == "Choque comum"]
+    elif filtro == "Próprias do item":
+        vis = tabela[tabela["Grupo"] != "Choque comum"]
     else:
         vis = tabela
 
     def cor_linha(linha):
-        if linha["Grupo"] == "Atualização oficial":
+        if linha["Grupo"] == "Choque comum":
             return [""] * len(linha)
         return ["background-color: rgba(227, 73, 72, 0.13)"] * len(linha)
 
@@ -614,7 +617,9 @@ def aba_triagem(top: pd.DataFrame, limiar: float, contaminacao: float):
                                 "Retorno (%)": st.column_config.Column(help="Retorno logarítmico diário × 100"),
                                 "MAD": st.column_config.TextColumn(width="small"),
                                 "IF": st.column_config.TextColumn(width="small")})
-    st.caption("Linhas destacadas: eventos sem explicação verificada. Clique no cabeçalho de uma coluna para ordenar.")
+    st.caption("Linhas destacadas: movimento próprio do item (ou fora da tabela do TCC). O índice de mercado, a regra de "
+               "possível sinal de manipulação e o piso de detecção estão na aba Mercado & Regra do app principal. "
+               "Clique no cabeçalho de uma coluna para ordenar.")
 
     st.markdown("**Agrupamento por período** (como na tabela do TCC)")
     grupos = []

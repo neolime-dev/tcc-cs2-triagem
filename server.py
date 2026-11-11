@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Terminal de triagem CS2 — servidor leve (biblioteca padrão + pandas/sklearn/ruptures já no .venv).
 
-Reproduz exatamente as fórmulas de app.py / gerar_tabelas_cesta.py (seções 5 e 15 a 20). Com os
-parâmetros padrão — limiar MAD 4,0, penalização PELT 10 e contaminação 0,02 — os números batem com o TCC.
+Reproduz as fórmulas de gerar_tabelas_cesta.py (seções 5 e 15 a 20) e de robustez_nivel3.py (episódios,
+regra e calendário). O índice de mercado e as anomalias sintéticas vêm pré-calculados (output/*.csv).
+Com os parâmetros padrão — limiar 4,0, penalização 10, contaminação 0,02, amplitude 10%, limiar de volume 4
+e reversão em 7 dias — os números batem com o TCC.
 
 Uso (dentro de prototipo/):   .venv/bin/python server.py   →   http://127.0.0.1:8765
 Opções:  --port 8765  --host 127.0.0.1  --open (abre o navegador quando estiver pronto)
@@ -46,7 +48,12 @@ SELECTED_ITEMS = [
 ]
 EVENT_DATE = pd.Timestamp("2025-10-22")
 FEATURES = ["z_return", "z_volume", "z_volume_change", "z_rolling_vol"]
-PADRAO = {"limiar": 4.0, "penalidade": 10, "contaminacao": 0.02}
+PADRAO = {"limiar": 4.0, "penalidade": 10, "contaminacao": 0.02, "amplitude": 10.0, "volz": 4.0, "reversao": 7}
+JANELA_EVENTO = 7          # dias entre o evento público e o início do episódio
+GRADE_VOLZ = [2.0, 3.0, 4.0]   # sensibilidade da regra: limiar de volume
+GRADE_REV = [3, 7, 14]         # sensibilidade da regra: prazo de reversão (dias)
+# Universo do índice de mercado (calculado por robustez_mercado.py sobre o dataset completo).
+UNIVERSO = {"skins": 1412, "taxa_candidatos": 2.35, "criterio": "≥ 880 dias e volume mediano ≥ 30"}
 GRADE_MAD = [3.0, 3.5, 4.0, 4.5, 5.0, 6.0]
 GRADE_PELT = [5, 8, 10, 12, 15, 20]
 GRADE_IF = [0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05]
@@ -60,10 +67,26 @@ RARIDADE = {  # raridade oficial no CS2
     "Desert Eagle | Printstream": ("Covert", "#eb4b4b"),
     "Glock-18 | Water Elemental": ("Classified", "#d32ce6"),
 }
-ATUALIZACOES = [
-    {"date": "2024-10-02", "rotulo": "The Armory", "texto": "Atualização The Armory (02/10/2024)"},
-    {"date": "2025-10-22", "rotulo": "Trade Up", "texto": "Atualização Trade Up (22/10/2025)"},
+# Calendário de eventos públicos do TCC: 9 promoções sazonais da Steam e 5 atualizações oficiais.
+CALENDARIO = [
+    ("2024-03-14", "promoção", "Promoção de primavera 2024", "Spring Sale"),
+    ("2024-06-27", "promoção", "Promoção de verão 2024", "Summer Sale"),
+    ("2024-10-02", "atualização", "Atualização The Armory", "The Armory"),
+    ("2024-11-27", "promoção", "Promoção de outono 2024", "Autumn Sale"),
+    ("2024-12-19", "promoção", "Promoção de inverno 2024", "Winter Sale"),
+    ("2025-01-29", "atualização", "Atualização Premier Season Two", "Premier S2"),
+    ("2025-03-13", "promoção", "Promoção de primavera 2025", "Spring Sale"),
+    ("2025-03-31", "atualização", "Atualização Spring Forward", "Spring Forward"),
+    ("2025-06-26", "promoção", "Promoção de verão 2025", "Summer Sale"),
+    ("2025-09-29", "promoção", "Promoção de outono 2025", "Autumn Sale"),
+    ("2025-10-22", "atualização", "Atualização do Trade Up Contract", "Trade Up"),
+    ("2025-11-12", "atualização", "Atualização Budapest Major Hub", "Major Hub"),
+    ("2025-12-18", "promoção", "Promoção de inverno 2025", "Winter Sale"),
+    ("2026-03-19", "promoção", "Promoção de primavera 2026", "Spring Sale"),
 ]
+CAL_TS = [(pd.Timestamp(d), tipo, nome, rotulo) for d, tipo, nome, rotulo in CALENDARIO]
+ATUALIZACOES = [{"date": d, "rotulo": rotulo, "texto": f"{nome} ({d[8:]}/{d[5:7]}/{d[:4]})"}
+                for d, tipo, nome, rotulo in CALENDARIO if tipo == "atualização"]
 
 
 # =============================================================================
@@ -203,28 +226,71 @@ def estudo_evento(df: pd.DataFrame):
     return event_rows, curvas
 
 
-def classificar_evento(data: pd.Timestamp, short_name: str) -> dict:
-    """Classificação contextual manual registrada no TCC (mesmas regras de app.py)."""
+def _achar(nome: str) -> Path:
+    """Arquivos pré-calculados: output/ (deploy) ou output/robustez/ (pasta do protótipo)."""
+    for p in (HERE / "output" / nome, HERE / "output" / "robustez" / nome):
+        if p.exists():
+            return p
+    raise SystemExit(f"Arquivo não encontrado: output/{nome} (gere com robustez_mercado.py / robustez_banca.py)")
+
+
+def anexar_mercado(df: pd.DataFrame, mercado: pd.DataFrame) -> pd.DataFrame:
+    """Índice de mercado (mediana de 1.412 skins) e baseline ajustado: escore sobre item − mercado."""
+    cols = ["retorno_mercado", "volume_mercado", "pct_universo_marcado"]
+    df = df.merge(mercado[cols].reset_index(), on="date", how="left")
+    df["adj_return"] = df["log_return"] - df["retorno_mercado"]
+    df["adj_volume"] = df["log_volume"] - df["volume_mercado"]
+    df["z_return_adj"] = df.groupby("market_hash_name")["adj_return"].transform(robust_z)
+    df["z_volume_adj"] = df.groupby("market_hash_name")["adj_volume"].transform(robust_z)
+    df["robust_score_adj"] = df[["z_return_adj", "z_volume_adj"]].abs().max(axis=1)
+    return df
+
+
+def listar_episodios(df: pd.DataFrame, coluna: str) -> list:
+    """Dias marcados do mesmo item separados por até dois dias formam um episódio."""
+    eps = []
+    for s in ORDEM_SKINS:
+        c = df[(df["short_name"] == s) & df[coluna]].sort_values("date")
+        if c.empty:
+            continue
+        bloco = (c["date"].diff().dt.days > 2).cumsum()
+        for _, e in c.groupby(bloco):
+            eps.append((s, e["date"].min(), e["date"].max(), len(e)))
+    return eps
+
+
+def evento_associado(inicio: pd.Timestamp, fim: pd.Timestamp):
+    """Evento do calendário entre JANELA_EVENTO dias antes do início e o fim do episódio."""
+    hits = [c for c in CAL_TS if inicio - pd.Timedelta(days=JANELA_EVENTO) <= c[0] <= fim]
+    return hits[-1] if hits else None
+
+
+def classificar_evento(data: pd.Timestamp, short_name: str, amplitude: float, limite: float) -> dict:
+    """Classificação das prioridades: abrangência (amplitude) + contexto registrado no TCC."""
+    comum = amplitude is not None and amplitude > limite
+    grupo = "Choque comum" if comum else "Movimento próprio do item"
+    amp_txt = "—" if amplitude is None else f"{amplitude:.1f}".replace(".", ",") + "%"
+    prefixo = f"{grupo} (amplitude de {amp_txt})"
     if pd.Timestamp("2025-10-22") <= data <= pd.Timestamp("2025-11-02"):
-        return {"grupo": "Atualização oficial", "badge": "tradeup", "rotulo": "Trade Up",
-                "texto": "Associado a contexto legítimo conhecido: atualização oficial de 22/10/2025 (Trade Up)"}
+        return {"grupo": grupo, "badge": "tradeup", "rotulo": "Trade Up", "amp_txt": amp_txt,
+                "texto": "Choque comum; associado a contexto legítimo conhecido: atualização oficial de 22/10/2025 (Trade Up)"}
     if data == pd.Timestamp("2024-10-03"):
-        return {"grupo": "Atualização oficial", "badge": "armory", "rotulo": "The Armory",
-                "texto": "Associado a contexto legítimo conhecido: atualização oficial The Armory, "
+        return {"grupo": grupo, "badge": "armory", "rotulo": "The Armory", "amp_txt": amp_txt,
+                "texto": "Choque comum; associado a contexto legítimo conhecido: atualização oficial The Armory, "
                          "de 02/10/2024 (03/10 em UTC)"}
     if short_name.startswith("M4A1-S") and data in (pd.Timestamp("2025-06-24"), pd.Timestamp("2025-06-25")):
-        return {"grupo": "Sem explicação verificada", "badge": "liquidez", "rotulo": "Baixa liquidez",
-                "texto": "Sem explicação observada; hipótese de problema de dado ou venda isolada"}
+        return {"grupo": grupo, "badge": "liquidez", "rotulo": "Baixa liquidez", "amp_txt": amp_txt,
+                "texto": "Movimento próprio do item; sem explicação observada; hipótese de problema de dado ou venda isolada"}
     if short_name.startswith("AK-47") and data == pd.Timestamp("2025-02-01"):
-        return {"grupo": "Sem explicação verificada", "badge": "semexp", "rotulo": "Sem explicação",
-                "texto": "Sem explicação observada; mantido para investigação"}
-    return {"grupo": "Não classificado", "badge": "nc", "rotulo": "Não classificado",
-            "texto": "Fora da classificação do TCC; exige investigação contextual"}
+        return {"grupo": grupo, "badge": "semexp", "rotulo": "Causa não confirmada", "amp_txt": amp_txt,
+                "texto": "Choque comum; coincide com a atualização de 29/01/2025 e com relatos de falha no mercado, "
+                         "sem confirmação oficial"}
+    ev = evento_associado(data, data)
+    extra = f"; até {JANELA_EVENTO} dias após {ev[2]}" if ev else "; sem evento público associado"
+    return {"grupo": grupo, "badge": "nc", "rotulo": "Choque comum" if comum else "Próprio do item", "amp_txt": amp_txt,
+            "texto": prefixo + extra + " (fora da tabela do TCC)"}
 
 
-# =============================================================================
-# Estado em memória (pré-carregado na inicialização)
-# =============================================================================
 def _num(v, casas=None):
     """Converte para tipo JSON (NaN → None)."""
     if v is None:
@@ -249,7 +315,11 @@ class Estado:
         t0 = time.time()
         # Identifica o CSV pelo conteúdo (não pela data): o cache feito no build vale na nuvem.
         self.chave = hashlib.sha256(DATA.read_bytes()).hexdigest()
-        self.base = preparar_base()
+        self.mercado = pd.read_csv(_achar("mercado_indice_diario.csv"), parse_dates=["date"]).set_index("date")
+        self.base = anexar_mercado(preparar_base(), self.mercado)
+        self.series = {s: g.sort_values("date").reset_index(drop=True) for s, g in self.base.groupby("short_name")}
+        self.mercado_json, self.calendario, self.pct_dias_evento = self._mercado_estatico()
+        self.sinteticas = self._sinteticas()
         print(f"[base] {len(self.base):,} observações carregadas em {time.time() - t0:.1f}s")
 
         t1 = time.time()
@@ -264,6 +334,112 @@ class Estado:
         self.sens_mad_fina = sensibilidade_mad(self.base, np.round(np.arange(3.0, 6.0001, 0.1), 1))
         self.lock = threading.Lock()
         print(f"[ok]   pronto em {time.time() - t0:.1f}s")
+
+    def _mercado_estatico(self):
+        """Partes que não dependem dos parâmetros: série do índice, calendário × índice e taxa-base."""
+        m = self.mercado
+        ret = m["retorno_mercado"].fillna(0.0)
+        serie = {
+            "date": [d.strftime("%Y-%m-%d") for d in m.index],
+            "nivel": _lista(100 * np.exp(ret.cumsum()), 2),
+            "ret": _lista(100 * (np.exp(m["retorno_mercado"]) - 1), 2),
+            "z": _lista(m["z_retorno_mercado"], 1),
+            "amp": _lista(m["pct_universo_marcado"], 1),
+        }
+        cal = []
+        for data, tipo, nome, rotulo in CAL_TS:
+            w = m.loc[data: data + pd.Timedelta(days=1)]
+            pior = w.loc[w["z_retorno_mercado"].abs().idxmax()]
+            cal.append({
+                "date": data.strftime("%Y-%m-%d"), "tipo": tipo, "evento": nome, "rotulo": rotulo,
+                "d0": _num(100 * (np.exp(m.loc[data, "retorno_mercado"]) - 1), 1),
+                "d1": _num(100 * (np.exp(w["retorno_mercado"].iloc[-1]) - 1), 1),
+                "escore": _num(pior["z_retorno_mercado"], 1),
+                "amp_max": _num(m.loc[data: data + pd.Timedelta(days=JANELA_EVENTO), "pct_universo_marcado"].max(), 1),
+                "choque": bool(w["z_retorno_mercado"].abs().max() >= PADRAO["limiar"]),
+            })
+        cobertos = [any(0 <= (d - c[0]).days <= JANELA_EVENTO for c in CAL_TS) for d in m.index]
+        return serie, cal, round(100 * float(np.mean(cobertos)), 1)
+
+    def _sinteticas(self) -> list:
+        """Taxa de recuperação de picos artificiais (pré-calculada por robustez_banca.py)."""
+        t = pd.read_csv(_achar("anomalias_sinteticas_recuperacao.csv"))
+        linhas = []
+        for (tipo, dur, preco, vol), g in t.groupby(["tipo", "duracao_dias", "alta_preco_%", "mult_volume"], sort=False):
+            por = {r["metodo"]: r for _, r in g.iterrows()}
+            linhas.append({
+                "tipo": tipo, "duracao": int(dur), "preco": _num(preco), "volume": _num(vol),
+                "global": _num(por["global"]["recuperacao_geral_%"], 1),
+                "movel90": _num(por["movel90"]["recuperacao_geral_%"], 1),
+                "if": _num(por["if"]["recuperacao_geral_%"], 1),
+                "por_skin": {s: _num(por["global"][s], 0) for s in ORDEM_SKINS},
+            })
+        return linhas
+
+    def _episodios(self, df: pd.DataFrame, limiar: float, amplitude: float, volz: float, reversao: int):
+        """Episódios do baseline e as quatro condições da regra de possível sinal de manipulação."""
+        amp = self.mercado["pct_universo_marcado"]
+        prazos = sorted(set(GRADE_REV) | {reversao})
+        lista = []
+        for s, ini, fim, n in listar_episodios(df, "robust_candidate"):
+            g = self.series[s]
+            ep = g[(g["date"] >= ini) & (g["date"] <= fim)]
+            antes = g[g["date"] < ini]
+            p_pre = antes["price_median"].iloc[-1] if len(antes) else float("nan")
+            pico = ep.loc[ep["price_median"].idxmax()]
+            alta = pico["price_median"] / p_pre - 1
+
+            def reverte(dias):
+                depois = g[(g["date"] > pico["date"]) & (g["date"] <= pico["date"] + pd.Timedelta(days=dias))]
+                return bool(alta > 0 and len(depois)
+                            and depois["price_median"].min() <= p_pre + 0.5 * (pico["price_median"] - p_pre))
+
+            zr, zv = ep["z_return"].max(), ep["z_volume"].max()
+            amp_max = float(amp.loc[ini:fim].max())
+            ev = evento_associado(ini, fim)
+            lista.append({
+                "skin": s, "inicio": ini.strftime("%Y-%m-%d"), "fim": fim.strftime("%Y-%m-%d"), "dias": int(n),
+                "amp_max": _num(amp_max, 1), "z_ret_max": _num(zr, 1), "z_vol_max": _num(zv, 1),
+                "alta": _num(100 * alta, 1), "evento": ev[2] if ev else None,
+                "c1": bool(amp_max <= amplitude), "c4": ev is None,
+                "_zr": float(zr) if zr == zr else float("-inf"), "_zv": float(zv) if zv == zv else float("-inf"),
+                "_rev": {p: reverte(p) for p in prazos},
+            })
+        for e in lista:
+            e["c2"] = bool(e["_zr"] >= limiar and e["_zv"] >= volz)
+            e["c3"] = e["_rev"][reversao]
+            e["nivel3"] = bool(e["c1"] and e["c2"] and e["c3"] and e["c4"])
+        sens = [{"volz": v, "reversao": p,
+                 "n": sum(1 for e in lista if e["c1"] and e["c4"] and e["_zr"] >= limiar and e["_zv"] >= v and e["_rev"][p])}
+                for v in GRADE_VOLZ for p in GRADE_REV]
+        resumo = {
+            "total": len(lista), "item_dias": int(df["robust_candidate"].sum()),
+            "c1": sum(e["c1"] for e in lista), "c2": sum(e["c2"] for e in lista),
+            "c3": sum(e["c3"] for e in lista), "c4": sum(e["c4"] for e in lista),
+            "c1c4": sum(e["c1"] and e["c4"] for e in lista), "c1c2": sum(e["c1"] and e["c2"] for e in lista),
+            "nivel3": sum(e["nivel3"] for e in lista), "associados": sum(not e["c4"] for e in lista),
+        }
+        lista.sort(key=lambda e: (e["inicio"], e["skin"]))
+        for e in lista:
+            for k in ("_zr", "_zv", "_rev"):
+                e.pop(k)
+        return lista, resumo, sens
+
+    def _ajustado(self, df: pd.DataFrame, limiar: float) -> list:
+        """Baseline original × baseline ajustado ao mercado, por skin e no total."""
+        d = df.copy()
+        d["adj_candidate"] = d["robust_score_adj"] >= limiar
+        ep_o = pd.Series([e[0] for e in listar_episodios(d, "robust_candidate")]).value_counts()
+        ep_a = pd.Series([e[0] for e in listar_episodios(d, "adj_candidate")]).value_counts()
+        linhas = []
+        for s in ORDEM_SKINS:
+            g = d[d["short_name"] == s]
+            linhas.append({"skin": s, "original": int(g["robust_candidate"].sum()), "ajustado": int(g["adj_candidate"].sum()),
+                           "comum": int((g["robust_candidate"] & g["adj_candidate"]).sum()),
+                           "ep_original": int(ep_o.get(s, 0)), "ep_ajustado": int(ep_a.get(s, 0))})
+        linhas.append({"skin": "Total", **{k: sum(r[k] for r in linhas) for k in
+                                           ("original", "ajustado", "comum", "ep_original", "ep_ajustado")}})
+        return linhas
 
     def _carregar_pelt(self) -> dict:
         """PELT de todas as skins × penalizações do slider; cache em disco invalidado pelo hash do CSV."""
@@ -296,14 +472,18 @@ class Estado:
 
     # ------------------------------------------------------------------
     @lru_cache(maxsize=256)
-    def payload(self, skin: str, limiar: float, penalidade: int, contaminacao: float) -> bytes:
+    def payload(self, skin: str, limiar: float, penalidade: int, contaminacao: float,
+                amplitude: float = PADRAO["amplitude"], volz: float = PADRAO["volz"],
+                reversao: int = PADRAO["reversao"]) -> bytes:
         base = self.base
         df = marcar_mad(base, limiar)
         md = combinar_if_mad(self.if_models[contaminacao], df)
         df_ref = marcar_mad(base, PADRAO["limiar"])
         md_ref = combinar_if_mad(self.if_models[PADRAO["contaminacao"]], df_ref)
         oficial = (limiar == PADRAO["limiar"] and penalidade == PADRAO["penalidade"]
-                   and contaminacao == PADRAO["contaminacao"])
+                   and contaminacao == PADRAO["contaminacao"] and amplitude == PADRAO["amplitude"]
+                   and volz == PADRAO["volz"] and reversao == PADRAO["reversao"])
+        amp_dia = self.mercado["pct_universo_marcado"]
 
         # --- cards das skins ---
         cards = []
@@ -357,7 +537,8 @@ class Estado:
         mediana_vol = df.groupby("short_name")["volume"].median()
         top_json = []
         for pos, (_, r) in enumerate(top.iterrows(), start=1):
-            cls = classificar_evento(r["date"], r["short_name"])
+            amp_evento = _num(amp_dia.get(r["date"]), 1)
+            cls = classificar_evento(r["date"], r["short_name"], amp_evento, amplitude)
             g = base[base["short_name"] == r["short_name"]].sort_values("date")
             anteriores = g[g["date"] < r["date"]]
             preco_ant = anteriores.iloc[-1]["price_median"] if len(anteriores) else None
@@ -375,6 +556,7 @@ class Estado:
                 "mad": bool(r["robust_candidate"]), "if": bool(r["if_candidate"]) if r["if_candidate"] == r["if_candidate"] else False,
                 "quebra_proxima": {"dias": dist_quebra[0], "data": dist_quebra[1]} if dist_quebra else None,
                 "valve_proxima": {"dias": dist_valve[0], "rotulo": dist_valve[1]},
+                "amplitude": amp_evento, "comum": cls["grupo"] == "Choque comum",
                 **cls,
             })
 
@@ -399,9 +581,25 @@ class Estado:
         pelt_grade = [{"penalizacao": p, "datas": self.pelt[(skin, p)], "no_tcc": p in GRADE_PELT} for p in PELT_SLIDER]
         em_todas = sorted(set.intersection(*(set(self.pelt[(skin, p)]) for p in GRADE_PELT)))
 
+        # --- mercado, episódios e regra ---
+        episodios, ep_resumo, ep_sens = self._episodios(df, limiar, amplitude, volz, reversao)
+        dias_comuns = int((amp_dia > amplitude).sum())
+        mercado = {
+            "serie": self.mercado_json, "universo": UNIVERSO, "limite": amplitude,
+            "dias_comuns": dias_comuns, "dias": int(len(amp_dia)),
+            "amp_mediana": _num(amp_dia.median(), 2),
+            "top_comum": sum(1 for e in top_json if e["comum"]), "top_total": len(top_json),
+            "calendario": self.calendario, "pct_dias_evento": self.pct_dias_evento,
+            "ajustado": self._ajustado(df, limiar),
+        }
+
         out = {
             "params": {"skin": skin, "limiar": limiar, "penalidade": penalidade, "contaminacao": contaminacao,
-                       "oficial": oficial},
+                       "amplitude": amplitude, "volz": volz, "reversao": reversao, "oficial": oficial},
+            "mercado": mercado,
+            "regra": {"episodios": episodios, "resumo": ep_resumo, "sens": ep_sens,
+                      "grade_volz": GRADE_VOLZ, "grade_rev": GRADE_REV},
+            "sinteticas": self.sinteticas,
             "padrao": PADRAO, "cards": cards, "kpis": kpis, "serie": serie_json,
             "pelt": self.pelt[(skin, penalidade)], "atualizacoes": ATUALIZACOES,
             "top": top_json, "grupos": grupos_json,
@@ -436,7 +634,10 @@ def _parse(qs: dict):
     penalidade = int(round(min(max(float(get("penalidade", PADRAO["penalidade"])), 5), 20)))
     c = float(get("contaminacao", PADRAO["contaminacao"]))
     contaminacao = min(GRADE_IF, key=lambda g: abs(g - c))  # passo de 0,005 do slider
-    return skin, limiar, penalidade, contaminacao
+    amplitude = float(round(min(max(float(get("amplitude", PADRAO["amplitude"])), 5), 30)))
+    volz = round(min(max(float(get("volz", PADRAO["volz"])), 2.0), 4.0) * 2) / 2
+    reversao = int(round(min(max(float(get("reversao", PADRAO["reversao"])), 3), 14)))
+    return skin, limiar, penalidade, contaminacao, amplitude, volz, reversao
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -444,7 +645,7 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*a, directory=str(WEB), **kw)
 
     def log_message(self, fmt, *args):  # log curto
-        if "/api/" in (args[0] if args else ""):
+        if args and isinstance(args[0], str) and "/api/" in args[0]:
             print(f"[api]  {args[0]} → {args[1]}")
 
     def end_headers(self):

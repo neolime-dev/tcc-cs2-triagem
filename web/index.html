@@ -57,6 +57,7 @@
 
   <nav class="tabs" role="tablist">
     <button class="tab active" role="tab" data-tab="monitor" aria-selected="true">Monitor &amp; Triagem</button>
+    <button class="tab" role="tab" data-tab="mercado" aria-selected="false">Mercado &amp; Regra</button>
     <button class="tab" role="tab" data-tab="evento" aria-selected="false">Estudo de evento &amp; Sensibilidade</button>
     <div class="tabs-note"><b>Triagem, não prova.</b> Séries diárias agregadas (skin × dia), sem livro de ofertas nem IDs de contas: um alerta indica prioridade de investigação contextual, não manipulação.</div>
   </nav>
@@ -99,8 +100,8 @@
         </div>
         <div class="chips" id="filtros">
           <button class="chip on" data-f="all">Todas <b id="f-all">25</b></button>
-          <button class="chip" data-f="oficial">Atualização oficial <b id="f-of">—</b></button>
-          <button class="chip" data-f="sem">Sem explicação verificada <b id="f-sem">—</b></button>
+          <button class="chip" data-f="comum">Choque comum <b id="f-of">—</b></button>
+          <button class="chip" data-f="proprio">Próprio do item <b id="f-sem">—</b></button>
         </div>
       </div>
       <div class="table-wrap">
@@ -162,9 +163,88 @@
     </div>
   </section>
 
+  <!-- ======================= ABA 3: mercado, regra e piso de detecção ======================= -->
+  <section class="tabpane" id="tab-mercado">
+    <section class="controls panel local" aria-label="Parâmetros da separação e da regra">
+      <div class="ctrl">
+        <div class="ctrl-head"><label for="sl-amp">Limite de amplitude <span class="hint">choque comum</span></label><output class="mono" id="out-amp">10%</output></div>
+        <input type="range" id="sl-amp" min="5" max="30" step="1" value="10">
+        <div class="ctrl-scale mono"><span>5%</span><span class="tcc-tick" style="--p:20%">TCC</span><span>30%</span></div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><label for="sl-volz">Limiar de volume <span class="hint">condição 2 da regra</span></label><output class="mono" id="out-volz">4,0</output></div>
+        <input type="range" id="sl-volz" min="2" max="4" step="0.5" value="4">
+        <div class="ctrl-scale mono"><span>2,0</span><span class="tcc-tick" style="--p:100%">TCC</span><span>&nbsp;</span></div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><label for="sl-rev">Prazo de reversão <span class="hint">condição 3 da regra</span></label><output class="mono" id="out-rev">7 dias</output></div>
+        <input type="range" id="sl-rev" min="3" max="14" step="1" value="7">
+        <div class="ctrl-scale mono"><span>3</span><span class="tcc-tick" style="--p:36.36%">TCC</span><span>14</span></div>
+      </div>
+      <div class="ctrl-actions"><div class="ctrl-note">O limiar MAD (acima) define os candidatos e a condição de alta de preço. O índice usa 1.412 skins e vem pré-calculado.</div></div>
+    </section>
+
+    <div class="kpis" id="kpis-mercado"></div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Índice de mercado e amplitude</div>
+          <div class="panel-sub">Acima: índice de mercado (base 100; mediana diária do retorno de 1.412 skins). Abaixo: amplitude, o percentual do universo marcado pelo baseline no dia. Barras vermelhas: dias de choque comum. Linhas verdes: atualizações oficiais; linhas azuis pontilhadas: início de promoções da Steam.</div>
+        </div>
+      </div>
+      <div id="chart-mercado" class="chart-lg"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Regra de possível sinal de manipulação — <span id="regra-n">34</span> episódios</div>
+          <div class="panel-sub">Um episódio só é possível sinal se cumprir as quatro condições. Episódio: dias marcados do mesmo item separados por até dois dias.</div>
+        </div>
+        <div class="chips" id="filtros-ep">
+          <button class="chip on" data-f="all">Todos <b id="fe-all">—</b></button>
+          <button class="chip" data-f="proprio">Próprios sem evento <b id="fe-prop">—</b></button>
+          <button class="chip" data-f="nivel3">Atendem à regra <b id="fe-n3">—</b></button>
+        </div>
+      </div>
+      <div class="conds" id="conds"></div>
+      <div class="table-wrap tall">
+        <table class="tbl compact" id="tbl-ep"><thead><tr>
+          <th>Skin</th><th>Período</th><th class="num">Dias</th><th class="num">Amplitude máx.</th><th class="num">z ret. máx.</th><th class="num">z vol. máx.</th><th class="num">Alta até o pico</th>
+          <th class="ctr" title="Movimento próprio do item">1 Próprio</th><th class="ctr" title="Alta conjunta de preço e volume">2 Alta conj.</th><th class="ctr" title="Reversão no prazo">3 Reversão</th><th class="ctr" title="Sem evento público associado">4 Sem evento</th>
+          <th>Evento associado</th><th class="ctr">Resultado</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+      <p class="foot-note">Atender à regra não confirmaria manipulação: indicaria um episódio compatível com a sequência de <i>pump-and-dump</i> e sem explicação pública. Não atender também não exclui manipulação, sobretudo abaixo do piso de detecção. A regra cobre um único mecanismo.</p>
+    </div>
+
+    <div class="sens-grid">
+      <div class="panel">
+        <div class="panel-title">Calendário de eventos públicos × índice</div>
+        <div class="panel-sub">Retorno do índice no dia do evento (D0) e no seguinte (D+1). Promoções: lista completa do período. Três das cinco atualizações foram localizadas a partir dos choques do índice.</div>
+        <table class="tbl compact tight" id="tbl-cal"><thead><tr><th>Data</th><th>Evento</th><th class="num">D0</th><th class="num">D+1</th><th class="num">Escore</th><th class="num">Ampl.</th></tr></thead><tbody></tbody></table>
+        <p class="foot-note" id="cal-note"></p>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Baseline original × ajustado ao mercado</div>
+        <div class="panel-sub">Ajustado: escore robusto sobre o retorno e o log-volume do item menos os do mercado (limiar MAD atual).</div>
+        <table class="tbl compact" id="tbl-adj"><thead><tr><th>Skin</th><th class="num">Original</th><th class="num">Ajustado</th><th class="num">Em comum</th><th class="num">Ep. orig.</th><th class="num">Ep. ajust.</th></tr></thead><tbody></tbody></table>
+        <div class="panel-title" style="margin-top:18px">Sensibilidade da regra</div>
+        <div class="panel-sub">Episódios que atendem às quatro condições, por limiar de volume e prazo de reversão.</div>
+        <table class="tbl compact" id="tbl-sens-regra"><thead><tr><th class="num">Limiar de volume</th><th class="num">3 dias</th><th class="num">7 dias</th><th class="num">14 dias</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Piso de detecção — anomalias sintéticas</div>
+        <div class="panel-sub">Percentual de picos artificiais de um dia recuperados (500 injeções por linha). Pré-calculado com os parâmetros do TCC. Mede sensibilidade a picos conhecidos, não detecção de manipulação real.</div>
+        <table class="tbl compact" id="tbl-sint"><thead><tr><th>Pico inserido</th><th class="num">Global</th><th class="num">Móvel 90</th><th class="num">IF</th><th class="num" id="th-sint-skin">Skin</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </section>
+
   <footer class="footer">
     TCC-II · Matheus Lima Ribeiro · Ciência de Dados e IA — IESB · Orientador: Prof. Sérgio da Costa Côrtes ·
-    Fonte: Pruden (2026), dataset público do Kaggle (Apache 2.0), cesta de 5 skins Field-Tested. Cálculos idênticos a <span class="mono">prototipo/gerar_tabelas_cesta.py</span>.
+    Fonte: Pruden (2026), dataset público do Kaggle (Apache 2.0), cesta de 5 skins Field-Tested. Cálculos idênticos a <span class="mono">prototipo/gerar_tabelas_cesta.py</span> e <span class="mono">robustez_nivel3.py</span>; índice de mercado e anomalias sintéticas pré-calculados por <span class="mono">robustez_mercado.py</span> e <span class="mono">robustez_banca.py</span>.
   </footer>
 </main>
 

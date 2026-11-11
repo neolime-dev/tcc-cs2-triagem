@@ -286,3 +286,28 @@ tr.tcc td:first-child::after { content: " TCC"; font-size: 9.5px; color: var(--g
   .chart { height: 460px; }
   .brand-sub { display: none; }
 }
+
+/* ---------------- aba Mercado & Regra ---------------- */
+.controls.local { position: static; margin: 0 0 16px; }
+.ctrl-note { font-size: 11.5px; color: var(--tx-3); line-height: 1.45; max-width: 230px; }
+.chart-lg { width: 100%; height: 470px; }
+.table-wrap.tall { max-height: 520px; overflow-y: auto; }
+.conds { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.cond { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+.cond .l { font-size: 11px; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.cond .n { font-family: var(--mono); font-size: 22px; font-weight: 700; margin-top: 2px; }
+.cond .d { font-size: 11.5px; color: var(--tx-2); line-height: 1.4; margin-top: 2px; }
+.cond.final { border-color: var(--accent); background: rgba(78,161,255,.07); }
+.cond.final.hit { border-color: var(--red); background: rgba(255,90,90,.08); }
+.ck { font-family: var(--mono); font-weight: 700; font-size: 12px; }
+.ck.y { color: var(--green); } .ck.n { color: var(--tx-3); font-weight: 400; }
+.res { font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--tx-3); }
+.res.hit { color: var(--red); border-color: rgba(255,90,90,.5); background: rgba(255,90,90,.1); }
+.tbl tr.hit td { background: rgba(255,90,90,.07); }
+.tbl td.heat { background: linear-gradient(90deg, rgba(78,161,255,.22) var(--h), transparent var(--h)); }
+.tbl tr.sep td { border-top: 1px solid var(--line-2); }
+.tbl td.curcell { outline: 1px solid var(--amber); outline-offset: -2px; color: var(--amber); font-weight: 700; }
+.tipo-tag { font-size: 10px; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; margin-right: 6px; }
+@media (max-width: 1100px) { .conds { grid-template-columns: repeat(2, minmax(0, 1fr)); } .controls.local { grid-template-columns: 1fr; } }
+.tbl.tight th, .tbl.tight td { padding-left: 5px; padding-right: 5px; }
+.tbl.tight td { font-size: 12px; }

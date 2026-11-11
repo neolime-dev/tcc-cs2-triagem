@@ -12,9 +12,9 @@ const SKIN_COR = {
 };
 const MONO = "JetBrains Mono, ui-monospace, monospace";
 const UI = "Inter, system-ui, sans-serif";
-const PADRAO = { limiar: 4.0, penalidade: 10, contaminacao: 0.02 };
+const PADRAO = { limiar: 4.0, penalidade: 10, contaminacao: 0.02, amplitude: 10, volz: 4.0, reversao: 7 };
 
-const S = { skin: "AK-47 | Asiimov", limiar: 4.0, penalidade: 10, contaminacao: 0.02, sel: null, filtro: "all", data: null, range: null };
+const S = { skin: "AK-47 | Asiimov", ...PADRAO, sel: null, filtro: "all", filtroEp: "all", data: null, range: null };
 const cache = new Map();
 let seq = 0;
 
@@ -33,11 +33,13 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const [arma, padrao] = [(s) => s.split(" | ")[0], (s) => s.split(" | ")[1] || ""];
 const $ = (id) => document.getElementById(id);
 const keyOf = (e) => e && `${e.skin}@${e.date}`;
-const isOficial = () => S.limiar === PADRAO.limiar && S.penalidade === PADRAO.penalidade && Math.abs(S.contaminacao - PADRAO.contaminacao) < 1e-9;
+const isOficial = () => S.limiar === PADRAO.limiar && S.penalidade === PADRAO.penalidade && Math.abs(S.contaminacao - PADRAO.contaminacao) < 1e-9
+  && S.amplitude === PADRAO.amplitude && S.volz === PADRAO.volz && S.reversao === PADRAO.reversao;
 
 /* ---------------- API ---------------- */
 async function carregar() {
-  const qs = new URLSearchParams({ skin: S.skin, limiar: S.limiar.toFixed(1), penalidade: String(S.penalidade), contaminacao: S.contaminacao.toFixed(3) });
+  const qs = new URLSearchParams({ skin: S.skin, limiar: S.limiar.toFixed(1), penalidade: String(S.penalidade), contaminacao: S.contaminacao.toFixed(3),
+    amplitude: String(S.amplitude), volz: S.volz.toFixed(1), reversao: String(S.reversao) });
   const k = qs.toString();
   const my = ++seq;
   let data = cache.get(k);
@@ -76,7 +78,7 @@ function render() {
   $("meta-periodo").textContent = `${dbr(D.kpis.inicio)} → ${dbr(D.kpis.fim)}`;
   $("meta-obs").textContent = `${f(D.kpis.observacoes)} obs · ${D.kpis.skins} skins · Field-Tested`;
   renderCards(D); renderMode(); renderKpis(D); renderChart(D); renderTable(D); renderGroups(D); renderDossie(D);
-  renderEvento(D); renderSens(D);
+  renderEvento(D); renderSens(D); renderMercado(D);
 }
 
 function renderCards(D) {
@@ -98,11 +100,14 @@ function renderMode() {
   const b = $("badge-mode"), of = isOficial();
   b.textContent = of ? "PARÂMETROS OFICIAIS DO TCC" : "MODO EXPLORATÓRIO";
   b.classList.toggle("expl", !of);
-  b.title = of ? "Limiar 4,0 · penalização 10 · contaminação 0,020 — os números coincidem com a monografia" : "Parâmetros diferentes dos da monografia: resultados exploratórios";
+  b.title = of ? "Limiar 4,0 · penalização 10 · contaminação 0,020 · amplitude 10% · limiar de volume 4,0 · reversão em 7 dias — os números coincidem com a monografia" : "Parâmetros diferentes dos da monografia: resultados exploratórios";
   $("btn-reset").disabled = of;
   $("out-limiar").classList.toggle("changed", S.limiar !== PADRAO.limiar);
   $("out-pen").classList.toggle("changed", S.penalidade !== PADRAO.penalidade);
   $("out-cont").classList.toggle("changed", Math.abs(S.contaminacao - PADRAO.contaminacao) > 1e-9);
+  $("out-amp").classList.toggle("changed", S.amplitude !== PADRAO.amplitude);
+  $("out-volz").classList.toggle("changed", S.volz !== PADRAO.volz);
+  $("out-rev").classList.toggle("changed", S.reversao !== PADRAO.reversao);
 }
 
 function renderKpis(D) {
@@ -159,9 +164,9 @@ function renderChart(D) {
   shapes.push({ type: "line", xref: "paper", yref: "paper", x0: 0, x1: 1, y0: 0.275, y1: 0.275, line: { color: C.line, width: 1 } });
   D.pelt.forEach((d) => shapes.push({ type: "line", xref: "x", yref: "paper", x0: d, x1: d, y0: 0, y1: 1,
     line: { color: emTodas.has(d) ? C.yellow : C.cyan, width: 1.2, dash: "dash" }, opacity: 0.75, layer: "below" }));
-  D.atualizacoes.forEach((a) => {
+  D.atualizacoes.forEach((a, k) => {
     shapes.push({ type: "line", xref: "x", yref: "paper", x0: noon(a.date), x1: noon(a.date), y0: 0, y1: 1, line: { color: C.green, width: 1.6 }, layer: "below" });
-    ann.push({ x: noon(a.date), y: 1, xref: "x", yref: "paper", yanchor: "top", xanchor: "left", showarrow: false, xshift: 4, yshift: -2,
+    ann.push({ x: noon(a.date), y: 1, xref: "x", yref: "paper", yanchor: "top", xanchor: "left", showarrow: false, xshift: 4, yshift: -2 - 16 * (k % 2),
       text: $("chart").clientWidth < 640 ? `▲ ${a.rotulo}` : `▲ ${a.rotulo} · ${dshort(a.date)}`, font: { family: MONO, size: 10.5, color: C.green }, bgcolor: "rgba(11,14,20,.85)", borderpad: 2 });
   });
   if (sel) {
@@ -223,10 +228,10 @@ function setRange(daysBack, center) {
 /* ---------------- mesa de triagem ---------------- */
 function renderTable(D) {
   const top = D.top;
-  const of = top.filter((e) => e.grupo === "Atualização oficial").length;
+  const of = top.filter((e) => e.comum).length;
   $("f-all").textContent = top.length; $("f-of").textContent = of; $("f-sem").textContent = top.length - of;
   document.querySelectorAll("#filtros .chip").forEach((c) => c.classList.toggle("on", c.dataset.f === S.filtro));
-  const rows = top.filter((e) => S.filtro === "all" || (S.filtro === "oficial" ? e.grupo === "Atualização oficial" : e.grupo !== "Atualização oficial"));
+  const rows = top.filter((e) => S.filtro === "all" || (S.filtro === "comum" ? e.comum : !e.comum));
   const rMin = Math.min(...top.map((e) => e.integrated_rank)), rMax = Math.max(...top.map((e) => e.integrated_rank));
   const mMax = Math.max(...top.map((e) => e.robust_score)), iMax = Math.max(...top.map((e) => e.if_score));
   const cor = Object.fromEntries(D.cards.map((c) => [c.skin, c.cor]));
@@ -234,7 +239,7 @@ function renderTable(D) {
   document.querySelector("#tbl-top tbody").innerHTML = rows.map((e) => {
     const rp = 15 + (85 * (e.integrated_rank - rMin)) / (rMax - rMin || 1);
     const ret = e.log_return === null ? null : 100 * e.log_return;
-    return `<tr data-k="${esc(keyOf(e))}" class="${keyOf(e) === S.sel ? "sel" : ""} ${e.grupo === "Sem explicação verificada" ? "alert" : ""}" tabindex="0">
+    return `<tr data-k="${esc(keyOf(e))}" class="${keyOf(e) === S.sel ? "sel" : ""} ${e.comum ? "" : "alert"}" tabindex="0">
       <td class="num">${e.pos}</td><td class="mono">${dbr(e.date)}</td>
       <td><span class="skin-cell" style="--rc:${cor[e.skin]}"><i></i>${esc(e.skin)}</span></td>
       <td><span class="bdg ${e.badge}" title="${esc(e.texto)}">${esc(e.rotulo)}</span></td>
@@ -259,11 +264,11 @@ function renderGroups(D) {
 
 /* ---------------- dossiê ---------------- */
 const DIAG = {
-  tradeup: "O dia cai na janela de 22/10 a 02/11/2025, logo após a atualização oficial <strong>Trade Up</strong>. Como várias skins reagiram ao mesmo tempo, o TCC lê o alerta como <strong>choque comum do ecossistema</strong>, um contexto legítimo conhecido, e não como ação isolada sobre uma skin.",
-  armory: "O dia coincide com a atualização oficial <strong>The Armory</strong> (02/10/2024; aparece em 03/10 porque as séries estão em UTC). O alerta tem <strong>contexto legítimo conhecido</strong>.",
-  liquidez: "Não há atualização oficial nem movimento simultâneo nas outras skins. A hipótese registrada no TCC é <strong>problema de dado ou venda isolada</strong> num dia de <strong>baixa liquidez</strong>: com poucas unidades negociadas, uma única venda fora do padrão desloca a mediana diária.",
-  semexp: "Nenhum contexto oficial explica o dia. O TCC <strong>mantém o evento para investigação contextual</strong>: é o tipo de alerta que a triagem existe para destacar, mas os dados agregados não permitem afirmar a causa.",
-  nc: "Este evento entrou no Top 25 com os parâmetros atuais, mas não faz parte da classificação registrada no TCC. Exige investigação contextual.",
+  tradeup: "O dia cai na janela de 22/10 a 02/11/2025, logo após a atualização oficial <strong>Trade Up</strong>. O índice de mercado confirma: em 23/10/2025, o retorno mediano de 1.412 skins foi de +12,7% e 72,0% delas foram marcadas. O TCC lê o alerta como <strong>choque comum do ecossistema</strong>, um contexto legítimo conhecido, e não como ação isolada sobre uma skin.",
+  armory: "O dia coincide com a atualização oficial <strong>The Armory</strong> (02/10/2024; aparece em 03/10 porque as séries estão em UTC). O índice de mercado caiu 4,2% e 14,3% do universo foi marcado: <strong>choque comum</strong> com contexto legítimo conhecido.",
+  liquidez: "Não há atualização oficial, e o índice de mercado ficou estável: é <strong>movimento próprio do item</strong>. A hipótese registrada no TCC é <strong>problema de dado ou venda isolada</strong> num dia de <strong>baixa liquidez</strong>: com poucas unidades negociadas e um único ponto de preço na fonte, uma venda fora do padrão desloca o preço diário.",
+  semexp: "O movimento não foi próprio do item: em 01/02/2025 o índice de mercado caiu 11,7% e 46,7% do universo foi marcado, depois de uma alta de 19,7% entre 28 e 31/01 com volume abaixo do habitual. O período coincide com a atualização <strong>Premier Season Two</strong> (29/01/2025) e com relatos de usuários sobre falha na criação de anúncios. É um <strong>choque comum com causa não confirmada</strong>.",
+  nc: "Este evento entrou no Top 25 com os parâmetros atuais, mas não faz parte da tabela do TCC. A abrangência é calculada pela amplitude do dia; a causa exige investigação contextual.",
 };
 function renderDossie(D) {
   const el = $("dossie");
@@ -300,6 +305,7 @@ function renderDossie(D) {
       <span class="flag mad ${e.mad ? "on" : ""}">MAD ${e.mad ? "✓ candidato" : "× abaixo do limiar"}</span>
       <span class="flag if ${e.if ? "on" : ""}">IF ${e.if ? "✓ anômalo" : "× normal"}</span>
       <span class="flag ctx">${rel(valve.d)} do ${esc(valve.rotulo)}</span>
+      <span class="flag ctx" title="Percentual das 1.412 skins do universo marcadas pelo baseline no dia; limite atual ${f(S.amplitude)}%">Amplitude ${esc(e.amp_txt)} · ${e.comum ? "choque comum" : "próprio do item"}</span>
       ${pelt !== null ? `<span class="flag ctx" title="Quebra de regime mais próxima (penalização ${S.penalidade})">PELT ${pelt === 0 ? "no dia" : (pelt > 0 ? pelt + "d após" : -pelt + "d antes")} da quebra ${dshort(e.quebra_proxima.data)}</span>` : ""}
     </div>
     <div class="ds-ranks">
@@ -429,20 +435,123 @@ function renderSens(D) {
   }).join("");
 }
 
+/* ---------------- mercado, regra e piso de detecção ---------------- */
+function renderMercado(D) {
+  const M = D.mercado, R = D.regra, r = R.resumo, s = M.serie;
+  const cor = Object.fromEntries(D.cards.map((c) => [c.skin, c.cor]));
+  $("kpis-mercado").innerHTML = [
+    `<div class="kpi"><div class="kpi-l">Universo do índice</div><div class="kpi-v">${f(M.universo.skins)}</div><div class="kpi-d">skins · ${f(M.universo.taxa_candidatos, 2)}% de candidatos</div></div>`,
+    `<div class="kpi"><div class="kpi-l">Dias de choque comum</div><div class="kpi-v" style="color:${C.red}">${f(M.dias_comuns)}</div><div class="kpi-d">de ${f(M.dias)} · amplitude &gt; ${f(M.limite)}%</div></div>`,
+    `<div class="kpi"><div class="kpi-l">Amplitude típica</div><div class="kpi-v">${f(M.amp_mediana, 2)}%</div><div class="kpi-d">mediana diária do universo</div></div>`,
+    `<div class="kpi"><div class="kpi-l">Prioridades em choque comum</div><div class="kpi-v" style="color:${C.amber}">${M.top_comum} de ${M.top_total}</div><div class="kpi-d">${M.top_total - M.top_comum} próprias do item</div></div>`,
+    `<div class="kpi"><div class="kpi-l">Episódios</div><div class="kpi-v">${r.total}</div><div class="kpi-d">${f(r.item_dias)} item-dias · ${r.associados} com evento</div></div>`,
+    `<div class="kpi"><div class="kpi-l">Atendem à regra</div><div class="kpi-v" style="color:${r.nivel3 ? C.red : C.green}">${r.nivel3}</div><div class="kpi-d">das quatro condições</div></div>`,
+  ].join("");
+
+  // gráfico: índice (acima) e amplitude (abaixo)
+  const X = s.date.map(noon), lim = M.limite;
+  const custom = s.date.map((_, i) => [s.ret[i], s.z[i], s.amp[i]]);
+  const shapes = [{ type: "line", xref: "paper", yref: "y2", x0: 0, x1: 1, y0: lim, y1: lim, line: { color: C.amber, width: 1.2, dash: "dash" } }], ann = [];
+  let k = 0;
+  M.calendario.forEach((e) => {
+    const up = e.tipo === "atualização";
+    shapes.push({ type: "line", xref: "x", yref: "paper", x0: noon(e.date), x1: noon(e.date), y0: 0, y1: 1, layer: "below",
+      line: { color: up ? C.green : C.accent, width: up ? 1.5 : 1, dash: up ? "solid" : "dot" }, opacity: up ? 0.9 : 0.55 });
+    if (up) ann.push({ x: noon(e.date), y: 1, xref: "x", yref: "paper", yanchor: "top", xanchor: "left", showarrow: false, xshift: 4, yshift: -2 - 16 * (k++ % 2),
+      text: `▲ ${e.rotulo}`, font: { family: MONO, size: 10.5, color: C.green }, bgcolor: "rgba(11,14,20,.85)", borderpad: 2 });
+  });
+  ann.push({ x: 0, y: lim, xref: "paper", yref: "y2", xanchor: "left", yanchor: "bottom", showarrow: false, xshift: 4,
+    text: `limite ${f(lim)}%`, font: { family: MONO, size: 10, color: C.amber } });
+  Plotly.react("chart-mercado", [
+    { type: "scatter", mode: "lines", x: X, y: s.nivel, line: { color: C.price, width: 1.6 }, customdata: custom,
+      hovertemplate: "<b>%{x|%d/%m/%Y}</b><br>Índice %{y:,.1f}<br>Retorno %{customdata[0]:+.1f}% · escore %{customdata[1]:+.1f}<extra></extra>" },
+    { type: "bar", x: X, y: s.amp, yaxis: "y2", marker: { color: s.amp.map((v) => (v > lim ? C.red : C.vol)), line: { width: 0 } },
+      hovertemplate: "Amplitude %{y:.1f}% do universo<extra></extra>" },
+  ], Object.assign(baseLayout(), {
+    margin: { l: 8, r: 56, t: 34, b: 30 }, hovermode: "x unified", bargap: 0.1,
+    xaxis: Object.assign({}, AX, { type: "date", anchor: "y2", showgrid: false, hoverformat: "%d/%m/%Y", tickformat: "%b %Y" }),
+    yaxis: Object.assign({}, AX, { domain: [0.42, 1], side: "right", tickformat: ",.0f" }),
+    yaxis2: Object.assign({}, AX, { domain: [0, 0.34], side: "right", ticksuffix: "%", rangemode: "tozero" }),
+    shapes, annotations: ann,
+  }), { responsive: true, displaylogo: false, displayModeBar: false });
+
+  // regra: condições, filtro e tabela de episódios
+  $("regra-n").textContent = r.total;
+  const cond = (l, n, d, cls = "") => `<div class="cond ${cls}"><div class="l">${l}</div><div class="n">${n}</div><div class="d">${d}</div></div>`;
+  $("conds").innerHTML = [
+    cond("1 · Movimento próprio", r.c1, `nenhum dia com amplitude acima de ${f(M.limite)}%`),
+    cond("2 · Alta conjunta", r.c2, `z de retorno ≥ ${f(S.limiar, 1)} e z de volume ≥ ${f(S.volz, 1)}`),
+    cond("3 · Reversão", r.c3, `devolve metade da alta em até ${S.reversao} dias`),
+    cond("4 · Sem evento público", r.c4, "nenhum evento do calendário associado"),
+    cond("Quatro condições", r.nivel3, r.nivel3 ? "possível sinal: exige conferência com outra fonte" : `nenhum episódio; condições 1 e 2 juntas: ${r.c1c2}`, "final" + (r.nivel3 ? " hit" : "")),
+  ].join("");
+  $("fe-all").textContent = r.total; $("fe-prop").textContent = r.c1c4; $("fe-n3").textContent = r.nivel3;
+  document.querySelectorAll("#filtros-ep .chip").forEach((c) => c.classList.toggle("on", c.dataset.f === S.filtroEp));
+  const ck = (v) => `<span class="ck ${v ? "y" : "n"}">${v ? "✓" : "×"}</span>`;
+  const eps = R.episodios.filter((e) => S.filtroEp === "all" || (S.filtroEp === "proprio" ? e.c1 && e.c4 : e.nivel3));
+  document.querySelector("#tbl-ep tbody").innerHTML = eps.length ? eps.map((e) => `<tr class="${e.nivel3 ? "hit" : ""}">
+    <td><span class="skin-cell" style="--rc:${cor[e.skin]}"><i></i>${esc(e.skin)}</span></td>
+    <td class="mono">${e.inicio === e.fim ? dbr(e.inicio) : dshort(e.inicio) + " a " + dshort(e.fim)}</td><td class="num">${e.dias}</td>
+    <td class="num ${e.amp_max > M.limite ? "neg" : ""}">${f(e.amp_max, 1)}%</td><td class="num">${fs(e.z_ret_max, 1)}</td><td class="num">${fs(e.z_vol_max, 1)}</td>
+    <td class="num ${e.alta > 0 ? "pos" : e.alta < 0 ? "neg" : ""}">${e.alta === null ? "—" : fs(e.alta, 1) + "%"}</td>
+    <td class="ctr">${ck(e.c1)}</td><td class="ctr">${ck(e.c2)}</td><td class="ctr">${ck(e.c3)}</td><td class="ctr">${ck(e.c4)}</td>
+    <td>${e.evento ? esc(e.evento) : `<span style="color:${C.tx3}">—</span>`}</td>
+    <td class="ctr"><span class="res ${e.nivel3 ? "hit" : ""}">${e.nivel3 ? "ATENDE" : "não atende"}</span></td></tr>`).join("")
+    : `<tr><td colspan="13" style="text-align:center;color:${C.tx3};padding:18px">Nenhum episódio neste filtro.</td></tr>`;
+
+  // calendário × índice
+  const cls = (v) => (v > 0 ? "pos" : v < 0 ? "neg" : "");
+  document.querySelector("#tbl-cal tbody").innerHTML = M.calendario.map((e) => `<tr>
+    <td class="mono">${dshort(e.date)}</td><td><span class="tipo-tag" style="color:${e.tipo === "atualização" ? C.green : C.accent}">${e.tipo === "atualização" ? "atual." : "promo"}</span>${esc(e.evento.replace(/^Atualização (do )?|^Promoção de /, ""))}</td>
+    <td class="num ${cls(e.d0)}">${fs(e.d0, 1)}%</td><td class="num ${cls(e.d1)}">${fs(e.d1, 1)}%</td>
+    <td class="num">${e.choque ? "<b>" + fs(e.escore, 1) + "</b>" : fs(e.escore, 1)}</td><td class="num ${e.amp_max > M.limite ? "neg" : ""}">${f(e.amp_max, 1)}%</td></tr>`).join("");
+
+  $("cal-note").innerHTML = `Taxa-base: <b>${f(M.pct_dias_evento, 1)}%</b> dos dias da janela ficam a até 7 dias depois de algum evento; <b>${r.associados} de ${r.total}</b> episódios estão associados a um evento. Escore em negrito: choque do índice (|z| ≥ 4) em D0 ou D+1.`;
+
+  // baseline original × ajustado
+  document.querySelector("#tbl-adj tbody").innerHTML = M.ajustado.map((a) => `<tr class="${a.skin === "Total" ? "sep" : ""}">
+    <td>${a.skin === "Total" ? "<b>Total</b>" : `<span class="skin-cell" style="--rc:${cor[a.skin]}"><i></i>${esc(arma(a.skin))}</span>`}</td>
+    <td class="num">${a.original}</td><td class="num">${a.ajustado}</td><td class="num">${a.comum}</td><td class="num">${a.ep_original}</td><td class="num">${a.ep_ajustado}</td></tr>`).join("");
+
+  // sensibilidade da regra
+  document.querySelector("#tbl-sens-regra tbody").innerHTML = R.grade_volz.map((v) => `<tr><td class="num">${f(v, 1)}</td>${R.grade_rev.map((p) => {
+    const n = R.sens.find((x) => x.volz === v && x.reversao === p).n, cur = v === S.volz && p === S.reversao;
+    return `<td class="num ${cur ? "curcell" : ""}" title="${cur ? "configuração atual" : ""}">${n}</td>`;
+  }).join("")}</tr>`).join("");
+
+  // piso de detecção (picos de um dia)
+  $("th-sint-skin").textContent = arma(S.skin);
+  const nome = { preco: "Preço", volume: "Volume", preco_e_volume: "Conjunto" };
+  const pico = (x) => (x.tipo === "preco" ? `+${f(x.preco)}%` : x.tipo === "volume" ? `×${f(x.volume)}` : `+${f(x.preco)}% e ×${f(x.volume)}`);
+  const heat = (v) => `<td class="num heat" style="--h:${v}%">${f(v, 1)}</td>`;
+  let ant = null;
+  document.querySelector("#tbl-sint tbody").innerHTML = D.sinteticas.filter((x) => x.duracao === 1).map((x) => {
+    const sep = ant !== null && ant !== x.tipo; ant = x.tipo;
+    return `<tr class="${sep ? "sep" : ""}"><td><span class="tipo-tag">${nome[x.tipo]}</span><span class="mono">${pico(x)}</span></td>${heat(x.global)}${heat(x.movel90)}${heat(x.if)}${heat(x.por_skin[S.skin])}</tr>`;
+  }).join("");
+}
+
 /* ---------------- controles ---------------- */
 let deb;
 function fill(sl) { const p = (100 * (sl.value - sl.min)) / (sl.max - sl.min); sl.style.setProperty("--fill", p + "%"); }
 function syncSliders() {
   const L = $("sl-limiar"), P = $("sl-pen"), Ct = $("sl-cont");
   L.value = S.limiar; P.value = S.penalidade; Ct.value = S.contaminacao;
-  [L, P, Ct].forEach(fill);
+  const A = $("sl-amp"), V = $("sl-volz"), R = $("sl-rev");
+  A.value = S.amplitude; V.value = S.volz; R.value = S.reversao;
+  [L, P, Ct, A, V, R].forEach(fill);
   $("out-limiar").textContent = f(S.limiar, 1); $("out-pen").textContent = S.penalidade; $("out-cont").textContent = f(S.contaminacao, 3);
+  $("out-amp").textContent = f(S.amplitude) + "%"; $("out-volz").textContent = f(S.volz, 1); $("out-rev").textContent = S.reversao + " dias";
 }
 function bind() {
   const on = (id, fn) => $(id).addEventListener("input", (ev) => { fn(+ev.target.value); syncSliders(); renderMode(); clearTimeout(deb); deb = setTimeout(carregar, 90); });
   on("sl-limiar", (v) => (S.limiar = Math.round(v * 10) / 10));
   on("sl-pen", (v) => (S.penalidade = Math.round(v)));
   on("sl-cont", (v) => (S.contaminacao = Math.round(v * 1000) / 1000));
+  on("sl-amp", (v) => (S.amplitude = Math.round(v)));
+  on("sl-volz", (v) => (S.volz = Math.round(v * 2) / 2));
+  on("sl-rev", (v) => (S.reversao = Math.round(v)));
+  $("filtros-ep").addEventListener("click", (ev) => { const c = ev.target.closest(".chip"); if (!c) return; S.filtroEp = c.dataset.f; renderMercado(S.data); });
   $("btn-reset").addEventListener("click", () => { Object.assign(S, PADRAO); syncSliders(); renderMode(); carregar(); });
   $("cards").addEventListener("click", (ev) => {
     const b = ev.target.closest(".card"); if (!b || b.dataset.skin === S.skin) return;
@@ -470,15 +579,19 @@ window.addEventListener("DOMContentLoaded", () => {
     months: ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"],
     shortMonths: ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"], decimal: ",", thousands: ".", date: "%d/%m/%Y" } });
   Plotly.setPlotConfig({ locale: "pt-BR" });
-  // Links diretos: #evento abre a 2ª aba; #e=<skin>@<AAAA-MM-DD>&limiar=..&penalidade=..&contaminacao=..
+  // Links diretos: #mercado e #evento abrem as outras abas; #e=<skin>@<AAAA-MM-DD>&limiar=..&penalidade=..&contaminacao=..
   const h = new URLSearchParams(location.hash.slice(1));
   if (h.has("limiar")) S.limiar = Math.min(6, Math.max(3, Math.round(+h.get("limiar") * 10) / 10));
   if (h.has("penalidade")) S.penalidade = Math.min(20, Math.max(5, Math.round(+h.get("penalidade"))));
   if (h.has("contaminacao")) S.contaminacao = Math.min(0.05, Math.max(0.01, Math.round(+h.get("contaminacao") * 200) / 200));
+  if (h.has("amplitude")) S.amplitude = Math.min(30, Math.max(5, Math.round(+h.get("amplitude"))));
+  if (h.has("volz")) S.volz = Math.min(4, Math.max(2, Math.round(+h.get("volz") * 2) / 2));
+  if (h.has("reversao")) S.reversao = Math.min(14, Math.max(3, Math.round(+h.get("reversao"))));
   if (h.has("e")) {
     const [sk, dt] = h.get("e").split("@");
     S.skin = sk; S.sel = `${sk}@${dt}`; S.range = [noon(addDays(dt, -75)), noon(addDays(dt, 75))];
   }
   syncSliders(); renderMode(); bind(); carregar();
   if (h.has("evento")) document.querySelector('.tab[data-tab="evento"]').click();
+  if (h.has("mercado")) document.querySelector('.tab[data-tab="mercado"]').click();
 });
