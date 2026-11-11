@@ -1,0 +1,35 @@
+item,inicio,fim,dias_marcados,amplitude_max_%,c1_proprio_do_item,z_ret_max,z_ret_min,z_vol_max,c2_alta_conjunta,alta_ate_pico_%,c3_reversao,evento_publico,dias_apos_evento,c4_sem_evento_publico,nivel3,queda_e_recuperacao
+Glock-18 | Water Elemental,2024-01-29,2024-02-01,4,4.2,True,8.1,-7.6,1.8,False,1.6,False,,,True,False,True
+Glock-18 | Water Elemental,2024-02-16,2024-02-16,1,4.7,True,4.3,4.3,2.6,False,9.8,True,,,True,False,False
+Desert Eagle | Printstream,2024-03-17,2024-03-17,1,3.3,True,-4.0,-4.0,0.3,False,-5.0,False,Steam Spring Sale 2024,3.0,False,False,False
+Desert Eagle | Printstream,2024-06-08,2024-06-08,1,1.3,True,-2.0,-2.0,4.2,False,-2.5,False,,,True,False,False
+Desert Eagle | Printstream,2024-08-18,2024-08-20,3,1.2,True,-1.5,-2.6,4.7,False,-2.2,False,,,True,False,False
+AK-47 | Asiimov,2024-10-01,2024-10-03,2,14.3,False,4.5,-6.6,5.1,True,7.8,True,The Armory,-1.0,False,False,True
+AWP | Hyper Beast,2024-10-03,2024-10-03,1,14.3,False,-4.3,-4.3,5.3,False,-11.9,False,The Armory,1.0,False,False,False
+Desert Eagle | Printstream,2024-10-03,2024-10-03,1,14.3,False,-5.3,-5.3,8.4,False,-6.5,False,The Armory,1.0,False,False,True
+Glock-18 | Water Elemental,2024-10-03,2024-10-03,1,14.3,False,-5.4,-5.4,4.3,False,-10.8,False,The Armory,1.0,False,False,True
+Glock-18 | Water Elemental,2024-11-28,2024-11-28,1,7.1,True,-4.5,-4.5,2.6,False,-9.0,False,Steam Autumn Sale 2024,1.0,False,False,True
+Glock-18 | Water Elemental,2025-01-28,2025-01-28,1,4.5,True,9.2,9.2,-0.8,False,22.3,True,Premier Season Two,0.0,False,False,False
+AK-47 | Asiimov,2025-01-30,2025-02-01,2,46.7,False,8.0,-9.7,1.7,False,14.4,True,Premier Season Two,2.0,False,False,True
+Glock-18 | Water Elemental,2025-01-31,2025-01-31,1,26.6,False,-6.4,-6.4,-2.6,False,-12.8,False,Premier Season Two,3.0,False,False,True
+Glock-18 | Water Elemental,2025-02-12,2025-02-12,1,1.4,True,4.2,4.2,-1.4,False,9.8,True,,,True,False,False
+AK-47 | Asiimov,2025-04-01,2025-04-01,1,5.0,True,-5.4,-5.4,2.3,False,-8.6,False,Spring Forward (Fever Case),1.0,False,False,False
+Desert Eagle | Printstream,2025-04-01,2025-04-01,1,5.0,True,-3.8,-3.8,4.1,False,-4.7,False,Spring Forward (Fever Case),1.0,False,False,False
+M4A1-S | Printstream,2025-04-14,2025-04-14,1,1.4,True,4.6,4.6,-1.0,False,17.5,True,,,True,False,False
+Glock-18 | Water Elemental,2025-06-01,2025-06-02,2,1.1,True,5.4,-4.5,-0.2,False,12.7,True,,,True,False,True
+AWP | Hyper Beast,2025-06-21,2025-06-22,2,1.8,True,4.6,-4.1,-0.1,False,14.5,True,,,True,False,True
+M4A1-S | Printstream,2025-06-24,2025-06-25,2,2.3,True,17.5,-17.5,-1.0,False,-0.0,False,,,True,False,True
+Glock-18 | Water Elemental,2025-07-01,2025-07-02,2,1.3,True,5.8,-4.5,1.0,False,13.6,True,Steam Summer Sale 2025,5.0,False,False,True
+M4A1-S | Printstream,2025-07-16,2025-07-17,2,1.3,True,4.5,-5.8,-1.0,False,-4.1,False,,,True,False,True
+Glock-18 | Water Elemental,2025-10-22,2025-11-07,16,72.0,False,26.2,-3.8,13.1,True,254.3,False,Trade Up Contract ampliado,0.0,False,False,False
+AK-47 | Asiimov,2025-10-23,2025-11-04,13,72.0,False,9.5,-3.6,10.7,True,58.9,False,Trade Up Contract ampliado,1.0,False,False,False
+AWP | Hyper Beast,2025-10-23,2025-11-05,13,72.0,False,4.9,-3.0,11.2,True,55.8,False,Trade Up Contract ampliado,1.0,False,False,False
+Desert Eagle | Printstream,2025-10-23,2025-11-15,22,72.0,False,11.1,-5.5,12.1,True,44.2,True,Budapest Major Hub,-20.0,False,False,True
+M4A1-S | Printstream,2025-10-23,2025-10-25,3,72.0,False,6.7,-9.9,5.5,True,-23.1,False,Trade Up Contract ampliado,1.0,False,False,True
+AK-47 | Asiimov,2025-11-08,2025-11-09,2,5.2,True,-1.4,-4.2,4.1,False,-2.2,False,,,True,False,False
+M4A1-S | Printstream,2025-11-24,2025-11-25,2,2.3,True,4.1,-4.7,1.4,False,15.7,True,,,True,False,True
+AK-47 | Asiimov,2026-01-29,2026-01-29,1,2.3,True,-4.1,-4.1,-0.7,False,-6.5,False,,,True,False,True
+Desert Eagle | Printstream,2026-03-11,2026-03-11,1,2.8,True,-4.1,-4.1,-0.0,False,-5.1,False,,,True,False,True
+Desert Eagle | Printstream,2026-05-15,2026-05-16,2,6.9,True,4.1,-5.4,0.7,False,5.5,True,,,True,False,True
+Glock-18 | Water Elemental,2026-05-26,2026-05-26,1,4.5,True,-4.2,-4.2,-3.1,False,-8.4,False,,,True,False,True
+Glock-18 | Water Elemental,2026-06-12,2026-06-12,1,3.2,True,-0.3,-0.3,-4.0,False,-0.5,False,,,True,False,False

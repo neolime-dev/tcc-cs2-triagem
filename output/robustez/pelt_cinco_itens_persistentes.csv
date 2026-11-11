@@ -1,0 +1,19 @@
+item,data,em_todas_exato,em_todas_ate_7_dias
+AK-47 | Asiimov,2024-03-18,False,False
+AK-47 | Asiimov,2024-10-08,True,True
+AK-47 | Asiimov,2025-10-23,True,True
+AK-47 | Asiimov,2025-12-31,False,True
+AWP | Hyper Beast,2024-03-30,True,True
+AWP | Hyper Beast,2025-10-23,True,True
+AWP | Hyper Beast,2025-12-01,True,True
+Desert Eagle | Printstream,2025-09-11,True,True
+Desert Eagle | Printstream,2025-10-23,True,True
+Desert Eagle | Printstream,2026-01-04,False,True
+Glock-18 | Water Elemental,2024-03-26,True,True
+Glock-18 | Water Elemental,2024-11-05,True,True
+Glock-18 | Water Elemental,2025-10-22,True,True
+Glock-18 | Water Elemental,2026-01-06,False,True
+M4A1-S | Printstream,2024-04-06,False,True
+M4A1-S | Printstream,2024-11-07,False,True
+M4A1-S | Printstream,2025-04-14,False,False
+M4A1-S | Printstream,2025-09-09,False,False

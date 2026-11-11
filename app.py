@@ -243,13 +243,13 @@ def classificar_evento(data: pd.Timestamp, short_name: str) -> tuple:
                 "Choque comum; associado a contexto legítimo conhecido: atualização oficial de 22/10/2025 (Trade Up)")
     if data == pd.Timestamp("2024-10-03"):
         return ("Choque comum", "Atualização The Armory (02/10/2024)",
-                "Choque comum; associado a contexto legítimo conhecido: atualização oficial The Armory, de 02/10/2024 (03/10 em UTC)")
+                "Choque comum; associado a contexto legítimo conhecido: atualização oficial The Armory, de 02/10/2024 (publicada às 23h50 UTC; efeito no registro de 03/10)")
     if short_name.startswith("M4A1-S") and data in (pd.Timestamp("2025-06-24"), pd.Timestamp("2025-06-25")):
         return ("Movimento próprio do item", "Próprio do item: dado ou venda isolada?",
                 "Movimento próprio do item; sem explicação observada; hipótese de problema de dado ou venda isolada")
     if short_name.startswith("AK-47") and data == pd.Timestamp("2025-02-01"):
         return ("Choque comum", "Choque comum: causa não confirmada",
-                "Choque comum; coincide com a atualização de 29/01/2025 e com relatos de falha no mercado, "
+                "Choque comum; coincide com a atualização de 28/01/2025 e com relatos de falha no mercado, "
                 "sem confirmação oficial")
     return ("Não classificado", "Fora da tabela do TCC",
             "Fora da classificação do TCC; exige investigação contextual")

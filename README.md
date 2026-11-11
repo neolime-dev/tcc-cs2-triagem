@@ -34,6 +34,30 @@ streamlit run app.py           # versão alternativa em Streamlit, mesmos númer
 
 Na nuvem (Hugging Face Spaces / Render), o `Dockerfile` sobe o Terminal de triagem.
 
+## Reproduzir as análises do TCC
+
+Os scripts de análise ficam na raiz do repositório, ao lado do app:
+
+| Script | O que produz |
+|---|---|
+| `download_data.py` | baixa a versão 4 do dataset no Kaggle |
+| `audit_data.py` | auditoria do arquivo histórico completo |
+| `build_analysis_notebook.py` | notebook com exploração, baseline, PELT, Isolation Forest, ranking e estudo de evento |
+| `gerar_tabelas_cesta.py` | tabelas e figura do estudo de evento a partir da cesta salva |
+| `robustez_banca.py` | PELT nas cinco skins, estabilidade do Isolation Forest, janela móvel, episódios e anomalias sintéticas |
+| `robustez_mercado.py` | índice de mercado, amplitude e baseline ajustado (usa o dataset completo) |
+| `robustez_nivel3.py` | calendário de eventos, taxa-base e regra de possível sinal de manipulação |
+
+```bash
+pip install -r requirements-analises.txt
+python gerar_tabelas_cesta.py      # não precisa do dataset completo
+python robustez_banca.py           # cerca de 6 minutos
+python robustez_nivel3.py          # usa output/robustez/mercado_indice_diario.csv
+python download_data.py && python robustez_mercado.py   # dataset completo (283 MB)
+```
+
+As saídas numéricas usadas no texto estão em `output/robustez/`.
+
 ## Dados
 
 `output/cesta_2024_2026.csv` é um recorte do dataset público de Devyn Pruden no Kaggle (versão 4, licença Apache 2.0).

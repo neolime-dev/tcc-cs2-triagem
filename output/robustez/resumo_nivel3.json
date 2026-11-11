@@ -1,0 +1,30 @@
+{
+  "episodios": 34,
+  "c1_proprio_do_item": 23,
+  "c2_alta_conjunta": 6,
+  "c3_reversao": 12,
+  "c4_sem_evento_publico": 17,
+  "c1_e_c4": 17,
+  "c1_e_c2": 0,
+  "nivel3": 0,
+  "queda_e_recuperacao_proprias": 12,
+  "sensibilidade_min_max_nivel3": [
+    0,
+    1
+  ],
+  "taxa_base": {
+    "eventos_no_calendario": 14,
+    "pct_dias_da_janela_ate_7_dias_apos_evento": 12.5,
+    "episodios_iniciados_ate_7_dias_apos_evento": 17,
+    "pct_episodios": 50.0,
+    "dias_de_choque_do_indice": 25,
+    "dias_de_choque_ate_7_dias_apos_evento": 19,
+    "dias_de_choque_comum_amplitude": 18,
+    "dias_de_choque_comum_ate_7_dias_apos_evento": 14
+  },
+  "promocoes": {
+    "total": 9,
+    "com_retorno_negativo_em_d1": 9,
+    "com_choque_no_indice_d0_d1": 5
+  }
+}

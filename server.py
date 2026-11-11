@@ -68,13 +68,14 @@ RARIDADE = {  # raridade oficial no CS2
     "Glock-18 | Water Elemental": ("Classified", "#d32ce6"),
 }
 # Calendário de eventos públicos do TCC: 9 promoções sazonais da Steam e 5 atualizações oficiais.
+# Atualizações: data UTC da publicação no canal oficial de notícias do jogo (todas entre 22h58 e 23h50 UTC).
 CALENDARIO = [
     ("2024-03-14", "promoção", "Promoção de primavera 2024", "Spring Sale"),
     ("2024-06-27", "promoção", "Promoção de verão 2024", "Summer Sale"),
     ("2024-10-02", "atualização", "Atualização The Armory", "The Armory"),
     ("2024-11-27", "promoção", "Promoção de outono 2024", "Autumn Sale"),
     ("2024-12-19", "promoção", "Promoção de inverno 2024", "Winter Sale"),
-    ("2025-01-29", "atualização", "Atualização Premier Season Two", "Premier S2"),
+    ("2025-01-28", "atualização", "Atualização Premier Season Two", "Premier S2"),
     ("2025-03-13", "promoção", "Promoção de primavera 2025", "Spring Sale"),
     ("2025-03-31", "atualização", "Atualização Spring Forward", "Spring Forward"),
     ("2025-06-26", "promoção", "Promoção de verão 2025", "Summer Sale"),
@@ -277,13 +278,13 @@ def classificar_evento(data: pd.Timestamp, short_name: str, amplitude: float, li
     if data == pd.Timestamp("2024-10-03"):
         return {"grupo": grupo, "badge": "armory", "rotulo": "The Armory", "amp_txt": amp_txt,
                 "texto": "Choque comum; associado a contexto legítimo conhecido: atualização oficial The Armory, "
-                         "de 02/10/2024 (03/10 em UTC)"}
+                         "de 02/10/2024 (publicada às 23h50 UTC; efeito no registro de 03/10)"}
     if short_name.startswith("M4A1-S") and data in (pd.Timestamp("2025-06-24"), pd.Timestamp("2025-06-25")):
         return {"grupo": grupo, "badge": "liquidez", "rotulo": "Baixa liquidez", "amp_txt": amp_txt,
                 "texto": "Movimento próprio do item; sem explicação observada; hipótese de problema de dado ou venda isolada"}
     if short_name.startswith("AK-47") and data == pd.Timestamp("2025-02-01"):
         return {"grupo": grupo, "badge": "semexp", "rotulo": "Causa não confirmada", "amp_txt": amp_txt,
-                "texto": "Choque comum; coincide com a atualização de 29/01/2025 e com relatos de falha no mercado, "
+                "texto": "Choque comum; coincide com a atualização de 28/01/2025 e com relatos de falha no mercado, "
                          "sem confirmação oficial"}
     ev = evento_associado(data, data)
     extra = f"; até {JANELA_EVENTO} dias após {ev[2]}" if ev else "; sem evento público associado"

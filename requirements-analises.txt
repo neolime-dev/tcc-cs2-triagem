@@ -1,0 +1,12 @@
+kagglehub
+pandas
+pyarrow
+matplotlib
+ruptures
+nbformat
+nbclient
+nbconvert
+ipykernel
+seaborn
+scikit-learn
+statsmodels

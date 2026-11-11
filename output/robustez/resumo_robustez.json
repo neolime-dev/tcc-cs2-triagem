@@ -1,0 +1,175 @@
+{
+  "pelt": {
+    "pontos_por_item_pen10": {
+      "AK-47 | Asiimov": 7,
+      "AWP | Hyper Beast": 5,
+      "Desert Eagle | Printstream": 8,
+      "Glock-18 | Water Elemental": 5,
+      "M4A1-S | Printstream": 6
+    },
+    "persistentes_exatos": {
+      "AK-47 | Asiimov": [
+        "2024-10-08",
+        "2025-10-23"
+      ],
+      "AWP | Hyper Beast": [
+        "2024-03-30",
+        "2025-10-23",
+        "2025-12-01"
+      ],
+      "Desert Eagle | Printstream": [
+        "2025-09-11",
+        "2025-10-23"
+      ],
+      "Glock-18 | Water Elemental": [
+        "2024-03-26",
+        "2024-11-05",
+        "2025-10-22"
+      ]
+    },
+    "persistentes_ate_7_dias": {
+      "AK-47 | Asiimov": [
+        "2024-10-08",
+        "2025-10-23",
+        "2025-12-31"
+      ],
+      "AWP | Hyper Beast": [
+        "2024-03-30",
+        "2025-10-23",
+        "2025-12-01"
+      ],
+      "Desert Eagle | Printstream": [
+        "2025-09-11",
+        "2025-10-23",
+        "2026-01-04"
+      ],
+      "Glock-18 | Water Elemental": [
+        "2024-03-26",
+        "2024-11-05",
+        "2025-10-22",
+        "2026-01-06"
+      ],
+      "M4A1-S | Printstream": [
+        "2024-04-06",
+        "2024-11-07"
+      ]
+    }
+  },
+  "isolation_forest": {
+    "por_contaminacao": {
+      "0.01": {
+        "marcados_min_max": [
+          45,
+          45
+        ],
+        "marcados_em_todas_as_10_sementes": 37,
+        "marcados_em_alguma_semente": 52,
+        "tambem_baseline_min_max": [
+          41,
+          43
+        ]
+      },
+      "0.02": {
+        "marcados_min_max": [
+          89,
+          89
+        ],
+        "marcados_em_todas_as_10_sementes": 74,
+        "marcados_em_alguma_semente": 102,
+        "tambem_baseline_min_max": [
+          62,
+          67
+        ]
+      },
+      "0.05": {
+        "marcados_min_max": [
+          221,
+          221
+        ],
+        "marcados_em_todas_as_10_sementes": 194,
+        "marcados_em_alguma_semente": 245,
+        "tambem_baseline_min_max": [
+          96,
+          101
+        ]
+      }
+    },
+    "top25_em_comum_com_referencia_min_max_10_sementes": [
+      24,
+      25
+    ]
+  },
+  "janela_movel": [
+    {
+      "janela_dias": 60,
+      "obs_avaliadas": 4179,
+      "candidatos_movel": 112,
+      "pct_movel": 2.68,
+      "candidatos_global_mesmas_obs": 106,
+      "em_comum": 80,
+      "movel_apos_23out2025": 61,
+      "global_apos_23out2025": 76,
+      "movel_retorno": 48,
+      "movel_volume": 88,
+      "episodios_movel": 44
+    },
+    {
+      "janela_dias": 90,
+      "obs_avaliadas": 4029,
+      "candidatos_movel": 118,
+      "pct_movel": 2.93,
+      "candidatos_global_mesmas_obs": 105,
+      "em_comum": 85,
+      "movel_apos_23out2025": 76,
+      "global_apos_23out2025": 76,
+      "movel_retorno": 50,
+      "movel_volume": 93,
+      "episodios_movel": 41
+    },
+    {
+      "janela_dias": 180,
+      "obs_avaliadas": 3579,
+      "candidatos_movel": 121,
+      "pct_movel": 3.38,
+      "candidatos_global_mesmas_obs": 104,
+      "em_comum": 92,
+      "movel_apos_23out2025": 84,
+      "global_apos_23out2025": 76,
+      "movel_retorno": 54,
+      "movel_volume": 96,
+      "episodios_movel": 35
+    }
+  ],
+  "episodios": {
+    "item_dias": 111,
+    "episodios_por_item": 34,
+    "datas_distintas": 61,
+    "blocos_de_datas_no_mercado": 22,
+    "episodios_por_item_detalhe": {
+      "AK-47 | Asiimov": 6,
+      "AWP | Hyper Beast": 3,
+      "Desert Eagle | Printstream": 8,
+      "Glock-18 | Water Elemental": 12,
+      "M4A1-S | Printstream": 5
+    },
+    "maior_episodio": {
+      "item": "Desert Eagle | Printstream",
+      "inicio": "2025-10-23",
+      "fim": "2025-11-15",
+      "dias_marcados": "22",
+      "escore_max": "12.1"
+    }
+  },
+  "top25": {
+    "baseline_e_integrado_em_comum": 17,
+    "if_sozinho_e_integrado_em_comum": 23,
+    "episodios_no_top25_baseline": 13,
+    "episodios_no_top25_integrado": 12,
+    "top25_baseline_apos_23out2025": 17,
+    "top25_integrado_apos_23out2025": 20
+  },
+  "sinteticas": {
+    "injecoes_por_configuracao": 500,
+    "arquivo": "anomalias_sinteticas_recuperacao.csv"
+  }
+}
